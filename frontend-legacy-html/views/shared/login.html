@@ -1,0 +1,42 @@
+<!-- views/shared/login.html -->
+<div id="loginView" class="view-container active">
+    <div class="login-box">
+        <div class="logo-icon"><i class="fa-solid fa-hand-holding-heart"></i></div>
+        <h1>COPER - FMP</h1>
+        <p>Acesso ao Sistema de Doações</p>
+
+        <form id="loginForm">
+            <div class="input-group">
+                <i class="fa-solid fa-envelope"></i>
+                <input type="text" id="email" placeholder="E-mail Institucional (@aluno.fmpsc.edu.br)" required>
+            </div>
+            <div class="input-group">
+                <i class="fa-solid fa-lock"></i>
+                <input type="password" id="senha" placeholder="Senha" required>
+                <button type="button" class="btn-toggle-senha" id="toggleSenha" aria-label="Mostrar/ocultar senha" title="Mostrar/ocultar senha">
+                    <i class="fa-solid fa-eye" id="toggleSenhaIcon"></i>
+                </button>
+            </div>
+            <button type="submit" class="btn-primary">Entrar</button>
+        </form>
+        <div class="login-links">
+            <a href="#" id="linkEsqueciSenha" class="link-btn">Esqueci minha senha</a>
+            <span class="link-sep">·</span>
+            <a href="#" id="linkCriarConta" class="link-btn">Criar conta</a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    document.getElementById('toggleSenha')?.addEventListener('click', function() {
+        const senhaInput = document.getElementById('senha');
+        const icon = document.getElementById('toggleSenhaIcon');
+        if (senhaInput && icon) {
+            const visivel = senhaInput.type === 'text';
+            senhaInput.type = visivel ? 'password' : 'text';
+            icon.classList.toggle('fa-eye', visivel);
+            icon.classList.toggle('fa-eye-slash', !visivel);
+        }
+    });
+</script>

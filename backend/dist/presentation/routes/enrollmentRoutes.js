@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const EnrollmentController_js_1 = require("../controllers/EnrollmentController.js");
+const authMiddleware_js_1 = require("../middlewares/authMiddleware.js");
+const rbacMiddleware_js_1 = require("../middlewares/rbacMiddleware.js");
+const index_js_1 = require("../../domain/enums/index.js");
+const router = (0, express_1.Router)();
+const controller = new EnrollmentController_js_1.EnrollmentController();
+router.use(authMiddleware_js_1.authMiddleware);
+router.post('/', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.UserRole.ALUNO), controller.enroll);
+router.patch('/:id/cancel', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.UserRole.ALUNO, index_js_1.UserRole.COPER), controller.cancel);
+router.get('/my', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.UserRole.ALUNO), controller.myEnrollments);
+exports.default = router;

@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const PublicValidationController_js_1 = require("../controllers/PublicValidationController.js");
+const router = (0, express_1.Router)();
+const publicController = new PublicValidationController_js_1.PublicValidationController();
+router.get('/validar', publicController.validateDocument);
+router.get('/validar/:code', publicController.validateDocument);
+router.get('/stats', publicController.publicStats);
+exports.default = router;

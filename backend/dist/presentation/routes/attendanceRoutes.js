@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const AttendanceController_js_1 = require("../controllers/AttendanceController.js");
+const authMiddleware_js_1 = require("../middlewares/authMiddleware.js");
+const rbacMiddleware_js_1 = require("../middlewares/rbacMiddleware.js");
+const validationMiddleware_js_1 = require("../middlewares/validationMiddleware.js");
+const attendance_dto_js_1 = require("../../application/dtos/attendance.dto.js");
+const index_js_1 = require("../../domain/enums/index.js");
+const router = (0, express_1.Router)();
+const attendanceController = new AttendanceController_js_1.AttendanceController();
+router.use(authMiddleware_js_1.authMiddleware);
+router.post('/', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.PROFESSOR, index_js_1.Role.COPER), (0, validationMiddleware_js_1.validate)({ body: attendance_dto_js_1.recordAttendanceSchema }), attendanceController.record);
+router.get('/classroom/:classroomId', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.PROFESSOR, index_js_1.Role.COPER), attendanceController.getByClassroom);
+exports.default = router;

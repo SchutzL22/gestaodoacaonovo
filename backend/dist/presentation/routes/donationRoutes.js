@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const DonationController_js_1 = require("../controllers/DonationController.js");
+const authMiddleware_js_1 = require("../middlewares/authMiddleware.js");
+const rbacMiddleware_js_1 = require("../middlewares/rbacMiddleware.js");
+const validationMiddleware_js_1 = require("../middlewares/validationMiddleware.js");
+const donation_dto_js_1 = require("../../application/dtos/donation.dto.js");
+const index_js_1 = require("../../domain/enums/index.js");
+const router = (0, express_1.Router)();
+const donationController = new DonationController_js_1.DonationController();
+router.use(authMiddleware_js_1.authMiddleware);
+router.post('/', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.ALUNO, index_js_1.Role.EMPRESARIO, index_js_1.Role.CIVIL, index_js_1.Role.COPER), (0, validationMiddleware_js_1.validate)({ body: donation_dto_js_1.createDonationSchema }), donationController.create);
+router.get('/', donationController.list);
+router.get('/:id', donationController.getById);
+router.patch('/:id/validate', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.COPER), (0, validationMiddleware_js_1.validate)({ body: donation_dto_js_1.validateDonationSchema }), donationController.validate);
+exports.default = router;
