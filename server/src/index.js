@@ -23,6 +23,9 @@ app.use('/api/doacoes', require('./routes/doacoes'));
 app.use('/api/itens-prioritarios', require('./routes/itensPrioritarios'));
 app.use('/api/relatorios', require('./routes/relatorios'));
 app.use('/api/notificacoes', require('./routes/notificacoes'));
+app.use('/api/certificados', require('./routes/certificados'));
+app.use('/api/v1/certificates', require('./routes/certificados'));
+app.use('/api/public', require('./routes/public'));
 
 // Error handler
 app.use((err, req, res, next) => {

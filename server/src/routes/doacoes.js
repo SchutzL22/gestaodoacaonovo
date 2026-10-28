@@ -49,7 +49,8 @@ async function mapDoacao(d) {
     localEntrega: d.local_entrega || '',
     motivoReprovacao: d.motivo_reprovacao || '',
     foto: d.foto_path ? `/uploads/${d.foto_path}` : null,
-    alunoId: d.aluno_id
+    alunoId: d.aluno_id,
+    certificadoToken: d.certificado_token || null
   };
 }
 
@@ -57,12 +58,14 @@ const DOACAO_SELECT = `
   SELECT d.*, 
          u.nome AS aluno_nome, a.matricula,
          c.titulo AS campanha_titulo,
-         an.caminho AS foto_path
+         an.caminho AS foto_path,
+         cert.token AS certificado_token
   FROM doacoes d
   LEFT JOIN alunos a ON d.aluno_id = a.id
   LEFT JOIN usuarios u ON a.id = u.id
   LEFT JOIN campanhas c ON d.campanha_id = c.id
   LEFT JOIN anexos an ON an.doacao_id = d.id
+  LEFT JOIN certificados cert ON cert.doacao_id = d.id
 `;
 
 // GET /api/doacoes
@@ -143,7 +146,16 @@ router.put('/:id/validar', async (req, res, next) => {
         // Criar notificação
         await db.query(
           `INSERT INTO notificacoes (aluno_id, doacao_id, mensagem, canal) VALUES (?, ?, ?, 'sistema')`,
-          [daoRows[0].aluno_id, req.params.id, `Sua doação foi aprovada! ${horasConcedidas}h concedidas.`]
+          [daoRows[0].aluno_id, req.params.id, `Sua doação foi aprovada! ${horasConcedidas}h concedidas. Seu certificado oficial foi gerado.`]
+        );
+
+        // Gerar Certificado oficial com token de autenticidade (Conforme UC07 / RN06)
+        const tokenCert = `CERT-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        await db.query(
+          `INSERT INTO certificados (doacao_id, token, caminho_arquivo, data_emissao)
+           VALUES (?, ?, ?, NOW())
+           ON DUPLICATE KEY UPDATE token = COALESCE(token, VALUES(token))`,
+          [req.params.id, tokenCert, `/certificados/cert_${req.params.id}.pdf`]
         );
       }
     } else if (status === 'REPROVADA' || status === 'Reprovada') {

@@ -9,6 +9,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../context/AuthContext';
 import { listarNotificacoes } from '../../services/api';
+import fmpLogo from '../../assets/fmplogo.png';
 import './AppLayout.css';
 
 const ADMIN_MENU = [
@@ -90,12 +91,13 @@ export default function AppLayout() {
 
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-brand">
-          <div className="brand-icon">
-            <FontAwesomeIcon icon={faHandHoldingHeart} />
+        <NavLink to="/" className="sidebar-brand" title="Ir para a Página Inicial / Institucional">
+          <img src={fmpLogo} alt="Logo FMP" className="sidebar-fmp-logo" />
+          <div className="sidebar-brand-texts">
+            <span className="sidebar-brand-title">COPER 3.0</span>
+            <span className="sidebar-brand-sub">FMP • Palhoça</span>
           </div>
-          <span>COPER FMP</span>
-        </div>
+        </NavLink>
 
         <ul className="sidebar-menu">
           {menu.map(item => (

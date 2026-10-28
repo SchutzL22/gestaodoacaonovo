@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import AppLayout from './components/layout/AppLayout';
 import DashboardAdminPage from './pages/admin/DashboardAdminPage';
@@ -31,13 +32,16 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* 🔍 Rota Pública de Validação por Hash (Estilo Unisul) */}
+      {/* 🌐 Rota Pública Principal — Landing Page Institucional & Dados de Impacto */}
+      <Route path="/" element={<LandingPage />} />
+
+      {/* 🔍 Rota Pública de Validação por Hash / QR Code */}
       <Route path="/validar" element={<ValidateCertificatePage />} />
 
-      {/* 📊 Dashboard Institucional de Impacto Social (Aberto / Empresários / Parceiros) */}
+      {/* 📊 Dashboard Institucional de Impacto Social (Aberto / Empresas / Parceiros) */}
       <Route path="/impacto-social" element={<SocialImpactDashboard />} />
 
-      {/* Autenticação */}
+      {/* 🔐 Autenticação */}
       <Route
         path="/login"
         element={
@@ -49,41 +53,32 @@ function AppRoutes() {
         }
       />
 
-      {/* Rotas Autenticadas no Layout Principal */}
-      <Route path="/" element={<PrivateRoute><AppLayout /></PrivateRoute>}>
-        <Route
-          index
-          element={
-            <Navigate
-              to={usuario?.tipo === 'admin' || usuario?.role === 'COPER' ? '/dashboard' : '/meu-painel'}
-              replace
-            />
-          }
-        />
-
+      {/* 🛡️ Rotas Autenticadas no Layout Principal (AppLayout) */}
+      <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
         {/* Admin / COPER */}
-        <Route path="dashboard" element={<PrivateRoute><DashboardAdminPage /></PrivateRoute>} />
-        <Route path="registrar-doacao" element={<PrivateRoute><RegistrarDoacaoPage /></PrivateRoute>} />
-        <Route path="validar-doacoes" element={<PrivateRoute><ValidarDoacoesPage /></PrivateRoute>} />
-        <Route path="campanhas" element={<PrivateRoute><CampanhasAdminPage /></PrivateRoute>} />
-        <Route path="itens-prioritarios" element={<PrivateRoute><ItensPrioritariosPage /></PrivateRoute>} />
-        <Route path="relatorios" element={<PrivateRoute><RelatoriosPage /></PrivateRoute>} />
-        <Route path="painel-impacto" element={<SocialImpactDashboard />} />
+        <Route path="/dashboard" element={<PrivateRoute><DashboardAdminPage /></PrivateRoute>} />
+        <Route path="/registrar-doacao" element={<PrivateRoute><RegistrarDoacaoPage /></PrivateRoute>} />
+        <Route path="/validar-doacoes" element={<PrivateRoute><ValidarDoacoesPage /></PrivateRoute>} />
+        <Route path="/campanhas" element={<PrivateRoute><CampanhasAdminPage /></PrivateRoute>} />
+        <Route path="/itens-prioritarios" element={<PrivateRoute><ItensPrioritariosPage /></PrivateRoute>} />
+        <Route path="/relatorios" element={<PrivateRoute><RelatoriosPage /></PrivateRoute>} />
+        <Route path="/painel-impacto" element={<SocialImpactDashboard embedded />} />
 
         {/* Professor */}
-        <Route path="chamada" element={<ChamadaPage />} />
-        <Route path="professor/chamada" element={<ChamadaPage />} />
+        <Route path="/chamada" element={<ChamadaPage />} />
+        <Route path="/professor/chamada" element={<ChamadaPage />} />
 
         {/* Aluno */}
-        <Route path="meu-painel" element={<DashboardAlunoPage />} />
-        <Route path="campanhas-ativas" element={<CampanhasAlunoPage />} />
-        <Route path="historico" element={<HistoricoAlunoPage />} />
+        <Route path="/meu-painel" element={<DashboardAlunoPage />} />
+        <Route path="/campanhas-ativas" element={<CampanhasAlunoPage />} />
+        <Route path="/historico" element={<HistoricoAlunoPage />} />
 
         {/* Compartilhado */}
-        <Route path="editar-perfil" element={<PrivateRoute><EditarPerfilPage /></PrivateRoute>} />
+        <Route path="/editar-perfil" element={<PrivateRoute><EditarPerfilPage /></PrivateRoute>} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
@@ -98,11 +93,13 @@ export default function App() {
           toastOptions={{
             duration: 3500,
             style: {
-              background: '#0f172a',
-              color: '#f8fafc',
+              background: '#06233B',
+              color: '#f0f4f8',
               borderRadius: '12px',
-              border: '1px solid #1e293b',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
+              border: '1px solid #1A5282',
+              boxShadow: '0 20px 25px -5px rgba(10, 58, 96, 0.4)',
+              fontFamily: "'Inter', sans-serif",
+              fontSize: '0.88rem',
             },
           }}
         />

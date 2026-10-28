@@ -1,0 +1,479 @@
+/* ========================================================
+   SISTEMA COPER 3.0 | DASHBOARD DE IMPACTO SOCIAL ESG
+   Identidade Visual FMP — Azul Marinho #0A3A60, Branco, Neutros
+   ======================================================== */
+
+/* ── WRAPPER STANDALONE (quando acessado em /impacto-social) ── */
+.sid-standalone {
+  min-height: 100vh;
+  background-color: #f0f4f8;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Header standalone */
+.sid-header {
+  background: linear-gradient(90deg, #0A3A60 0%, #082a47 60%, #06233B 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 4px 20px rgba(10, 58, 96, 0.25);
+}
+.sid-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.sid-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: #ffffff;
+}
+.sid-header-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+}
+.sid-header-brand:hover .sid-header-logo {
+  transform: scale(1.04);
+}
+.sid-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.20);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+.sid-header-title { font-size: 1rem; font-weight: 800; color: #ffffff; }
+.sid-header-sub { font-size: 0.72rem; color: rgba(255,255,255,0.5); }
+.sid-header-actions { display: flex; gap: 0.6rem; align-items: center; }
+.sid-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.60);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.sid-btn-back:hover { color: #90CAF9; }
+.sid-btn-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #ffffff;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.sid-btn-login:hover { background: rgba(255,255,255,0.18); }
+
+/* Content area */
+.sid-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+
+/* ── CONTAINER PRINCIPAL (usado em ambos os contextos) ── */
+.sid-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  color: #1a2332;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ── CABEÇALHO DA SEÇÃO ────────────────────────────────── */
+.sid-top {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-bottom: 1.5px solid #e2e8f0;
+  padding-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .sid-top {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.sid-top-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(10, 58, 96, 0.07);
+  border: 1px solid rgba(10, 58, 96, 0.15);
+  color: #0A3A60;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.3px;
+}
+
+.sid-top h1 {
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-weight: 800;
+  color: #06233B;
+  letter-spacing: -0.4px;
+  margin: 0 0 4px;
+}
+
+.sid-top-sub {
+  font-size: 0.83rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.sid-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.sid-year-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1a2332;
+  cursor: pointer;
+}
+.sid-year-select svg { color: #0A3A60; flex-shrink: 0; }
+.sid-year-select select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1a2332;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #0A3A60, #1A5282);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(10, 58, 96, 0.28);
+  white-space: nowrap;
+}
+.btn-export:hover {
+  background: linear-gradient(135deg, #082a47, #0A3A60);
+  box-shadow: 0 6px 18px rgba(10, 58, 96, 0.38);
+  transform: translateY(-1px);
+}
+
+/* ── GRID DE KPIs ─────────────────────────────────────── */
+.sid-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 900px) {
+  .sid-kpis { grid-template-columns: repeat(4, 1fr); }
+}
+
+.sid-kpi-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.25rem 1.25rem 1rem;
+  box-shadow: 0 4px 14px rgba(10, 58, 96, 0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+  position: relative;
+}
+.sid-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(10, 58, 96, 0.10);
+}
+.sid-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0A3A60, #2196F3);
+}
+
+.sid-kpi-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.9rem;
+  color: #ffffff;
+}
+.sid-kpi-icon.blue   { background: linear-gradient(135deg, #0A3A60, #1A5282); box-shadow: 0 4px 10px rgba(10,58,96,0.28); }
+.sid-kpi-icon.accent { background: linear-gradient(135deg, #1565C0, #2196F3); box-shadow: 0 4px 10px rgba(33,150,243,0.22); }
+.sid-kpi-icon.green  { background: linear-gradient(135deg, #1B5E20, #27AE60); box-shadow: 0 4px 10px rgba(39,174,96,0.22); }
+.sid-kpi-icon.orange { background: linear-gradient(135deg, #E65100, #F2994A); box-shadow: 0 4px 10px rgba(242,153,74,0.25); }
+
+.sid-kpi-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748b;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+.sid-kpi-value {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 800;
+  color: #06233B;
+  line-height: 1.1;
+}
+.sid-kpi-unit {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #94a3b8;
+}
+.sid-kpi-trend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  color: #27AE60;
+}
+.sid-kpi-trend.accent { color: #1A5282; }
+.sid-kpi-trend.muted { color: #64748b; }
+
+/* ── GRÁFICOS ─────────────────────────────────────────── */
+.sid-charts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1000px) {
+  .sid-charts { grid-template-columns: 5fr 7fr; }
+}
+
+.sid-chart-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 14px rgba(10, 58, 96, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.sid-chart-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #06233B;
+  margin: 0 0 4px;
+}
+.sid-chart-sub {
+  font-size: 0.77rem;
+  color: #64748b;
+  margin: 0 0 1.25rem;
+}
+
+.sid-chart-area {
+  width: 100%;
+  height: 260px;
+}
+
+.sid-legend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+.sid-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  color: #334155;
+}
+.sid-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.sid-legend-pct {
+  margin-left: auto;
+  font-weight: 700;
+  color: #0A3A60;
+}
+
+.sid-chart-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+  font-size: 0.73rem;
+  color: #64748b;
+}
+.sid-chart-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.sid-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sid-chart-legend-line {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+/* ── TABELA DE TRANSPARÊNCIA ──────────────────────────── */
+.sid-table-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 14px rgba(10, 58, 96, 0.06);
+}
+
+.sid-table-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .sid-table-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.sid-table-title { font-size: 1rem; font-weight: 700; color: #06233B; margin: 0 0 3px; }
+.sid-table-sub { font-size: 0.77rem; color: #64748b; margin: 0; }
+
+.btn-sheet {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #f0f4f8;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0A3A60;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-sheet:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.sid-table-wrap { overflow-x: auto; }
+
+table.sid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.sid-table thead tr {
+  border-bottom: 2px solid #e2e8f0;
+}
+.sid-table thead th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.sid-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
+}
+.sid-table tbody tr:hover { background: #f8fafc; }
+.sid-table tbody tr:last-child { border-bottom: none; }
+
+.sid-table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+  color: #334155;
+}
+
+.sid-td-title { font-weight: 700; color: #06233B !important; }
+.sid-td-value { font-weight: 700; color: #0A3A60 !important; }
+
+.sid-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.sid-badge.done {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+.sid-badge.active {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}

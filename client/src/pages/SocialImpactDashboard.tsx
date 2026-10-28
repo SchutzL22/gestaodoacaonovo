@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   Package,
@@ -7,12 +8,13 @@ import {
   Award,
   Download,
   Calendar,
-  Filter,
   TrendingUp,
   FileSpreadsheet,
   Building2,
   CheckCircle2,
-  Share2,
+  ArrowLeft,
+  LogIn,
+  BarChart3,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -20,22 +22,21 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
   AreaChart,
   Area,
   XAxis,
   YAxis,
   CartesianGrid,
 } from 'recharts';
+import fmpLogo from '../assets/fmplogo.png';
+import './SocialImpactDashboard.css';
 
-// Paleta harmoniosa para Data Visualization
-const CATEGORY_COLORS = ['#0d9488', '#0284c7', '#8b5cf6', '#f59e0b', '#ec4899'];
+// Paleta de visualização de dados — tons de azul FMP e complementares
+const CATEGORY_COLORS = ['#0A3A60', '#1A5282', '#2196F3', '#27AE60', '#F2994A'];
 
-export default function SocialImpactDashboard() {
+export default function SocialImpactDashboard({ embedded = false }: { embedded?: boolean }) {
   const [selectedYear, setSelectedYear] = useState('2026');
-  const [loading, setLoading] = useState(false);
 
-  // Dados dos KPIs Principais
   const [kpis, setKpis] = useState({
     totalItens: 14850,
     familiasImpactadas: 620,
@@ -43,7 +44,6 @@ export default function SocialImpactDashboard() {
     horasComputadas: 3240,
   });
 
-  // Distribuição por Categorias de Doação (Gráfico de Rosca)
   const categoryData = [
     { name: 'Alimentos Não Perecíveis', value: 7200, pct: '48.5%' },
     { name: 'Agasalhos e Cobertores', value: 3450, pct: '23.2%' },
@@ -52,7 +52,6 @@ export default function SocialImpactDashboard() {
     { name: 'Brinquedos e Acolhimento', value: 600, pct: '4.0%' },
   ];
 
-  // Evolução Mensal das Doações e Horas (Gráfico de Linha/Área)
   const monthlyData = [
     { mes: 'Jan', itens: 850, horas: 180 },
     { mes: 'Fev', itens: 1100, horas: 240 },
@@ -63,31 +62,30 @@ export default function SocialImpactDashboard() {
     { mes: 'Jul', itens: 2750, horas: 600 },
   ];
 
-  // Tabela de Transparência Institucional
   const campaigns = [
     {
       id: 'CMP-01',
-      title: 'Campanha de Inverno 2026 - Palhoça Sem Frio',
+      title: 'Campanha de Inverno 2026 — Palhoça Sem Frio',
       categoria: 'Agasalhos e Cobertores',
       meta: '3.000 peças',
       arrecadado: '3.450 peças (115%)',
       status: 'CONCLUÍDA',
       impacto: '420 famílias assistidas',
-      data: 'Maio - Junho / 2026',
+      data: 'Maio – Junho / 2026',
     },
     {
       id: 'CMP-02',
-      title: 'Alimentando o Saber - Cestas Básicas Comunitárias',
+      title: 'Alimentando o Saber — Cestas Básicas Comunitárias',
       categoria: 'Alimentos',
       meta: '5.000 kg',
       arrecadado: '7.200 kg (144%)',
       status: 'EM ANDAMENTO',
       impacto: '350 cestas montadas',
-      data: 'Março - Atual',
+      data: 'Março – Atual',
     },
     {
       id: 'CMP-03',
-      title: 'Volta às Aulas Inclusiva - Kits de Material Escolar',
+      title: 'Volta às Aulas Inclusiva — Kits de Material Escolar',
       categoria: 'Material Escolar',
       meta: '2.000 itens',
       arrecadado: '2.400 itens (120%)',
@@ -107,7 +105,6 @@ export default function SocialImpactDashboard() {
     },
   ];
 
-  // Busca dados dinâmicos da API se disponível
   useEffect(() => {
     async function loadStats() {
       try {
@@ -117,150 +114,199 @@ export default function SocialImpactDashboard() {
           setKpis((prev) => ({
             ...prev,
             horasComputadas: impact.totalHoursGranted || prev.horasComputadas,
-            totalItens: impact.totalApprovedDonations ? impact.totalApprovedDonations * 25 : prev.totalItens,
+            totalItens: impact.totalApprovedDonations
+              ? impact.totalApprovedDonations * 25
+              : prev.totalItens,
           }));
         }
-      } catch (e) {
-        // Fallback gracioso com os dados institucionais consolidados
+      } catch {
+        // Dados institucionais de demonstração mantidos
       }
     }
     loadStats();
   }, []);
 
-  const handleExportPDF = () => {
-    window.print();
+  const handleExportPDF = () => window.print();
+
+  const tooltipStyle = {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    borderRadius: '10px',
+    color: '#1a2332',
+    fontSize: '12px',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
   };
 
+  if (embedded) {
+    return (
+      <SocialImpactContent
+        kpis={kpis}
+        categoryData={categoryData}
+        monthlyData={monthlyData}
+        campaigns={campaigns}
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
+        handleExportPDF={handleExportPDF}
+        tooltipStyle={tooltipStyle}
+      />
+    );
+  }
+
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-8 p-4 sm:p-6 lg:p-8 text-slate-100">
-      {/* 1. TOPO: TÍTULO, IDENTIFICAÇÃO E AÇÕES */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20 text-xs font-semibold mb-2">
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Portal de Responsabilidade Social & Prestação de Contas</span>
+    <div className="sid-standalone">
+      {/* ── HEADER STANDALONE ─────────────────────────────── */}
+      <header className="sid-header">
+        <div className="sid-header-inner">
+          <Link to="/" className="sid-header-brand">
+            <img src={fmpLogo} alt="Logo FMP" className="sid-header-logo" />
+            <div>
+              <div className="sid-header-title">COPER 3.0 — Impacto Social</div>
+              <div className="sid-header-sub">Dashboard Institucional ESG & Transparência</div>
+            </div>
+          </Link>
+          <div className="sid-header-actions">
+            <Link to="/" className="sid-btn-back">
+              <ArrowLeft size={14} />
+              <span>Página Inicial</span>
+            </Link>
+            <Link to="/login" className="sid-btn-login">
+              <LogIn size={13} />
+              <span>Acessar Sistema</span>
+            </Link>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Dashboard Institucional de Impacto Social
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
+        </div>
+      </header>
+
+      {/* ── CONTEÚDO ──────────────────────────────────────── */}
+      <div className="sid-content">
+        <SocialImpactContent
+          kpis={kpis}
+          categoryData={categoryData}
+          monthlyData={monthlyData}
+          campaigns={campaigns}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
+          handleExportPDF={handleExportPDF}
+          tooltipStyle={tooltipStyle}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Conteúdo reutilizável (pode ser chamado dentro do AppLayout também) ──
+interface KPIs { totalItens: number; familiasImpactadas: number; alunosEngajados: number; horasComputadas: number; }
+interface Campaign { id: string; title: string; categoria: string; meta: string; arrecadado: string; status: string; impacto: string; data: string; }
+
+function SocialImpactContent({
+  kpis,
+  categoryData,
+  monthlyData,
+  campaigns,
+  selectedYear,
+  setSelectedYear,
+  handleExportPDF,
+  tooltipStyle,
+}: {
+  kpis: KPIs;
+  categoryData: { name: string; value: number; pct: string }[];
+  monthlyData: { mes: string; itens: number; horas: number }[];
+  campaigns: Campaign[];
+  selectedYear: string;
+  setSelectedYear: (y: string) => void;
+  handleExportPDF: () => void;
+  tooltipStyle: object;
+}) {
+  return (
+    <div className="sid-wrapper">
+      {/* 1. CABEÇALHO DA SEÇÃO */}
+      <div className="sid-top">
+        <div>
+          <div className="sid-top-badge">
+            <Building2 size={12} />
+            Portal de Responsabilidade Social & Prestação de Contas
+          </div>
+          <h1>Dashboard Institucional de Impacto Social</h1>
+          <p className="sid-top-sub">
             Painel executivo para monitoramento de arrecadações, horas complementares e auditoria para parceiros empresariais.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Seletor de Ano */}
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-xs font-medium">
-            <Calendar className="w-4 h-4 text-teal-400" />
+        <div className="sid-top-actions">
+          <div className="sid-year-select">
+            <Calendar size={15} />
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-transparent text-slate-200 focus:outline-none cursor-pointer"
             >
-              <option value="2026" className="bg-slate-900">Exercício 2026</option>
-              <option value="2025" className="bg-slate-900">Exercício 2025</option>
+              <option value="2026">Exercício 2026</option>
+              <option value="2025">Exercício 2025</option>
             </select>
           </div>
-
-          {/* Exportar Relatório */}
-          <button
-            type="button"
-            onClick={handleExportPDF}
-            className="bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-teal-600/20 transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span>Exportar Relatório</span>
+          <button type="button" onClick={handleExportPDF} className="btn-export">
+            <Download size={14} />
+            Exportar Relatório
           </button>
         </div>
       </div>
 
-      {/* 2. CARDS DE KPIS PRINCIPAIS (Topo) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {/* KPI 1 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl shadow-black/20 relative overflow-hidden backdrop-blur-xl">
-          <div className="w-11 h-11 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 mb-3">
-            <Package className="w-6 h-6" />
+      {/* 2. KPIs */}
+      <div className="sid-kpis">
+        <div className="sid-kpi-card">
+          <div className="sid-kpi-icon blue"><Package size={20} /></div>
+          <span className="sid-kpi-label">Total de Itens Arrecadados</span>
+          <div className="sid-kpi-value">
+            {kpis.totalItens.toLocaleString('pt-BR')}
+            <span className="sid-kpi-unit"> unidades</span>
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block">
-            Total de Itens Arrecadados
-          </span>
-          <p className="text-3xl font-extrabold text-white mt-1">
-            {kpis.totalItens.toLocaleString('pt-BR')}{' '}
-            <span className="text-sm font-normal text-slate-400">unidades</span>
-          </p>
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400 mt-2 font-medium">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>+24% em relação ao semestre anterior</span>
+          <div className="sid-kpi-trend">
+            <TrendingUp size={13} />
+            +24% em relação ao semestre anterior
           </div>
         </div>
 
-        {/* KPI 2 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl shadow-black/20 relative overflow-hidden backdrop-blur-xl">
-          <div className="w-11 h-11 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-3">
-            <HeartHandshake className="w-6 h-6" />
+        <div className="sid-kpi-card">
+          <div className="sid-kpi-icon accent"><HeartHandshake size={20} /></div>
+          <span className="sid-kpi-label">Famílias e Projetos Impactados</span>
+          <div className="sid-kpi-value">
+            {kpis.familiasImpactadas.toLocaleString('pt-BR')}
+            <span className="sid-kpi-unit"> beneficiados</span>
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block">
-            Famílias e Projetos Impactados
-          </span>
-          <p className="text-3xl font-extrabold text-white mt-1">
-            {kpis.familiasImpactadas.toLocaleString('pt-BR')}{' '}
-            <span className="text-sm font-normal text-slate-400">beneficiados</span>
-          </p>
-          <div className="flex items-center gap-1.5 text-xs text-cyan-400 mt-2 font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>12 ONGs e comunidades assistidas</span>
+          <div className="sid-kpi-trend accent">
+            <CheckCircle2 size={13} />
+            12 ONGs e comunidades assistidas
           </div>
         </div>
 
-        {/* KPI 3 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl shadow-black/20 relative overflow-hidden backdrop-blur-xl">
-          <div className="w-11 h-11 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-3">
-            <Users className="w-6 h-6" />
+        <div className="sid-kpi-card">
+          <div className="sid-kpi-icon green"><Users size={20} /></div>
+          <span className="sid-kpi-label">Alunos e Voluntários Engajados</span>
+          <div className="sid-kpi-value">
+            {kpis.alunosEngajados.toLocaleString('pt-BR')}
+            <span className="sid-kpi-unit"> estudantes</span>
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block">
-            Alunos e Voluntários Engajados
-          </span>
-          <p className="text-3xl font-extrabold text-white mt-1">
-            {kpis.alunosEngajados.toLocaleString('pt-BR')}{' '}
-            <span className="text-sm font-normal text-slate-400">estudantes</span>
-          </p>
-          <div className="flex items-center gap-1.5 text-xs text-purple-400 mt-2 font-medium">
-            <span>94% de adesão nos cursos de extensão</span>
-          </div>
+          <div className="sid-kpi-trend muted">94% de adesão nos cursos de extensão</div>
         </div>
 
-        {/* KPI 4 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl shadow-black/20 relative overflow-hidden backdrop-blur-xl">
-          <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-3">
-            <Award className="w-6 h-6" />
+        <div className="sid-kpi-card">
+          <div className="sid-kpi-icon orange"><Award size={20} /></div>
+          <span className="sid-kpi-label">Horas de Extensão Computadas</span>
+          <div className="sid-kpi-value">
+            {kpis.horasComputadas.toLocaleString('pt-BR')}
+            <span className="sid-kpi-unit"> horas</span>
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block">
-            Horas de Extensão Computadas
-          </span>
-          <p className="text-3xl font-extrabold text-white mt-1">
-            {kpis.horasComputadas.toLocaleString('pt-BR')}{' '}
-            <span className="text-sm font-normal text-slate-400">horas</span>
-          </p>
-          <div className="flex items-center gap-1.5 text-xs text-amber-400 mt-2 font-medium">
-            <span>Certificados auditáveis emitidos</span>
-          </div>
+          <div className="sid-kpi-trend muted">Certificados auditáveis emitidos</div>
         </div>
       </div>
 
-      {/* 3. GRÁFICOS: ROSCA DE CATEGORIAS + ÁREA DE EVOLUÇÃO MENSAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Gráfico 1: Rosca/Pizza (Categorias) */}
-        <div className="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl backdrop-blur-xl flex flex-col justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              Distribuição por Categoria de Doação
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Divisão proporcional dos suprimentos arrecadados na instituição.
-            </p>
-          </div>
+      {/* 3. GRÁFICOS */}
+      <div className="sid-charts">
+        {/* Gráfico 1: Rosca */}
+        <div className="sid-chart-card">
+          <h3 className="sid-chart-title">Distribuição por Categoria de Doação</h3>
+          <p className="sid-chart-sub">Divisão proporcional dos suprimentos arrecadados na instituição.</p>
 
-          <div className="w-full h-64 my-4">
+          <div className="sid-chart-area">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -272,164 +318,136 @@ export default function SocialImpactDashboard() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {categoryData.map((entry, index) => (
+                  {categoryData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '12px',
-                    color: '#f8fafc',
-                    fontSize: '12px',
-                  }}
+                  contentStyle={tooltipStyle}
                   formatter={(value: any) => [`${Number(value).toLocaleString('pt-BR')} itens`, 'Quantidade']}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs border-t border-slate-800 pt-4">
+          <div className="sid-legend-grid">
             {categoryData.map((item, idx) => (
-              <div key={item.name} className="flex items-center gap-2">
+              <div key={item.name} className="sid-legend-item">
                 <span
-                  className="w-3 h-3 rounded-md shrink-0"
+                  className="sid-legend-dot"
                   style={{ backgroundColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }}
                 />
-                <span className="text-slate-300 truncate">{item.name}:</span>
-                <span className="font-bold text-white ml-auto">{item.pct}</span>
+                <span style={{ color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.name}
+                </span>
+                <span className="sid-legend-pct">{item.pct}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Gráfico 2: Evolução Mensal (Área) */}
-        <div className="lg:col-span-7 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl backdrop-blur-xl flex flex-col justify-between">
-          <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              Evolução Mensal de Arrecadações & Horas
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Crescimento contínuo de itens doados e horas complementares atribuídas no ano de {selectedYear}.
-            </p>
-          </div>
+        {/* Gráfico 2: Área mensal */}
+        <div className="sid-chart-card">
+          <h3 className="sid-chart-title">Evolução Mensal de Arrecadações & Horas</h3>
+          <p className="sid-chart-sub">
+            Crescimento contínuo de itens doados e horas complementares atribuídas em {selectedYear}.
+          </p>
 
-          <div className="w-full h-72 my-4">
+          <div className="sid-chart-area" style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="itensGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0d9488" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
+                  <linearGradient id="itensGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0A3A60" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#0A3A60" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="horasGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                  <linearGradient id="horasGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2196F3" stopOpacity={0.20} />
+                    <stop offset="95%" stopColor="#2196F3" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="mes" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0f172a',
-                    borderColor: '#334155',
-                    borderRadius: '12px',
-                    color: '#f8fafc',
-                    fontSize: '12px',
-                  }}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="mes" stroke="#94a3b8" fontSize={12} />
+                <YAxis stroke="#94a3b8" fontSize={12} />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Area
                   type="monotone"
                   dataKey="itens"
                   name="Itens Arrecadados"
-                  stroke="#0d9488"
+                  stroke="#0A3A60"
                   strokeWidth={2.5}
                   fillOpacity={1}
-                  fill="url(#itensGradient)"
+                  fill="url(#itensGrad)"
                 />
                 <Area
                   type="monotone"
                   dataKey="horas"
                   name="Horas Concedidas"
-                  stroke="#8b5cf6"
+                  stroke="#2196F3"
                   strokeWidth={2}
                   fillOpacity={1}
-                  fill="url(#horasGradient)"
+                  fill="url(#horasGrad)"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-400 border-t border-slate-800 pt-3">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-1 rounded-full bg-teal-500" />
-                Itens Físicos
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-1 rounded-full bg-purple-500" />
-                Horas Concedidas
-              </span>
+          <div className="sid-chart-footer">
+            <div className="sid-chart-legend-row">
+              <div className="sid-chart-legend-item">
+                <div className="sid-chart-legend-line" style={{ background: '#0A3A60' }} />
+                <span>Itens Físicos</span>
+              </div>
+              <div className="sid-chart-legend-item">
+                <div className="sid-chart-legend-line" style={{ background: '#2196F3' }} />
+                <span>Horas Concedidas</span>
+              </div>
             </div>
             <span>Atualizado em tempo real pelo COPER</span>
           </div>
         </div>
       </div>
 
-      {/* 4. TABELA DE TRANSPARÊNCIA INSTITUCIONAL */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl backdrop-blur-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      {/* 4. TABELA DE TRANSPARÊNCIA */}
+      <div className="sid-table-card">
+        <div className="sid-table-header">
           <div>
-            <h3 className="text-lg font-bold text-white">Relatório de Transparência das Campanhas</h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Registro auditável dos projetos comunitários e destinação dos suprimentos.
-            </p>
+            <h3 className="sid-table-title">Relatório de Transparência das Campanhas</h3>
+            <p className="sid-table-sub">Registro auditável dos projetos comunitários e destinação dos suprimentos.</p>
           </div>
-          <button
-            type="button"
-            onClick={handleExportPDF}
-            className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 transition-all cursor-pointer self-start sm:self-auto"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-teal-400" />
-            <span>Baixar Planilha de Prestação de Contas</span>
+          <button type="button" onClick={handleExportPDF} className="btn-sheet">
+            <FileSpreadsheet size={14} />
+            Baixar Planilha de Prestação de Contas
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="sid-table-wrap">
+          <table className="sid-table">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400 uppercase font-semibold">
-                <th className="py-3 px-4">Campanha</th>
-                <th className="py-3 px-4">Categoria</th>
-                <th className="py-3 px-4">Meta Estipulada</th>
-                <th className="py-3 px-4">Arrecadado</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4">Impacto Social Direto</th>
-                <th className="py-3 px-4">Período</th>
+              <tr>
+                <th>Campanha</th>
+                <th>Categoria</th>
+                <th>Meta Estipulada</th>
+                <th>Arrecadado</th>
+                <th>Status</th>
+                <th>Impacto Social Direto</th>
+                <th>Período</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody>
               {campaigns.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3.5 px-4 font-semibold text-white">{c.title}</td>
-                  <td className="py-3.5 px-4 text-slate-300">{c.categoria}</td>
-                  <td className="py-3.5 px-4 text-slate-400">{c.meta}</td>
-                  <td className="py-3.5 px-4 font-bold text-teal-400">{c.arrecadado}</td>
-                  <td className="py-3.5 px-4">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        c.status === 'CONCLUÍDA'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
-                      }`}
-                    >
+                <tr key={c.id}>
+                  <td className="sid-td-title">{c.title}</td>
+                  <td>{c.categoria}</td>
+                  <td style={{ color: '#64748b' }}>{c.meta}</td>
+                  <td className="sid-td-value">{c.arrecadado}</td>
+                  <td>
+                    <span className={`sid-badge ${c.status === 'CONCLUÍDA' ? 'done' : 'active'}`}>
                       {c.status}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 text-slate-300">{c.impacto}</td>
-                  <td className="py-3.5 px-4 text-slate-400 font-mono text-[11px]">{c.data}</td>
+                  <td>{c.impacto}</td>
+                  <td style={{ color: '#64748b', fontFamily: 'monospace', fontSize: '0.75rem' }}>{c.data}</td>
                 </tr>
               ))}
             </tbody>

@@ -22,6 +22,8 @@ import {
   BarChart3,
   LogIn,
 } from 'lucide-react';
+import fmpLogo from '../assets/fmplogo.png';
+import './ValidateCertificatePage.css';
 
 interface CertificateData {
   isValid: boolean;
@@ -43,7 +45,7 @@ interface CertificateData {
 }
 
 export default function ValidateCertificatePage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [hashInput, setHashInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [certificate, setCertificate] = useState<CertificateData | null>(null);
@@ -57,7 +59,8 @@ export default function ValidateCertificatePage() {
       setHashInput(code);
       handleValidate(code);
     }
-  }, [searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleValidate = async (codeToVerify?: string) => {
     const code = (codeToVerify || hashInput).trim();
@@ -71,7 +74,6 @@ export default function ValidateCertificatePage() {
     setCertificate(null);
 
     try {
-      // Chama o endpoint público de validação estilo Unisul
       const response = await axios.get(`/api/v1/certificates/validate/${encodeURIComponent(code)}`);
       if (response.data?.data) {
         setCertificate(response.data.data);
@@ -108,105 +110,101 @@ export default function ValidateCertificatePage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-white relative overflow-x-hidden">
-      {/* Background radial ambient glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-96 bg-gradient-to-b from-teal-500/10 via-emerald-500/5 to-transparent blur-3xl pointer-events-none" />
+    <div className="validate-page">
+      {/* Background ambient glows */}
+      <div className="validate-bg-glow vglow-top-right" />
+      <div className="validate-bg-glow vglow-bottom-left" />
 
-      {/* Top Banner Institucional */}
-      <header className="w-full border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md sticky top-0 z-30">
-        <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-extrabold text-lg tracking-wider">
-              C3
+      {/* ── HEADER INSTITUCIONAL ──────────────────────────── */}
+      <header className="validate-header">
+        <div className="validate-header-inner">
+          {/* Brand */}
+          <Link to="/" className="validate-brand">
+            <img src={fmpLogo} alt="Logo FMP" className="validate-brand-logo" />
+            <div className="validate-brand-texts">
+              <span className="validate-brand-title">COPER 3.0</span>
+              <span className="validate-brand-sub">Portal de Autenticidade de Documentos</span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base md:text-lg leading-tight tracking-tight text-white">
-                  COPER 3.0
-                </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold tracking-wide">
-                  Portal de Autenticidade
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                Verificação Pública e Criptográfica de Documentos Oficiais
-              </p>
-            </div>
-          </div>
+          </Link>
 
-          <div className="flex items-center gap-3 sm:gap-4 text-xs">
-            <Link
-              to="/impacto-social"
-              className="hidden md:flex items-center gap-1.5 text-slate-300 hover:text-emerald-400 font-medium transition-colors"
-            >
-              <BarChart3 className="w-4 h-4 text-emerald-400" />
+          {/* Nav direita */}
+          <nav className="validate-header-nav">
+            <div className="validate-header-badge" style={{ display: 'none' } as React.CSSProperties}>
+              <Building2 size={13} />
+              <span>FMP • Palhoça</span>
+            </div>
+            <Link to="/impacto-social" className="validate-header-link" style={{ display: 'none' } as React.CSSProperties}>
+              <BarChart3 size={14} />
               <span>Impacto Social</span>
             </Link>
-            <div className="h-4 w-px bg-slate-800 hidden md:block" />
-            <div className="flex items-center gap-1.5 text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
-              <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate max-w-[130px] sm:max-w-none">FMP • Palhoça</span>
+            {/* Badge institution */}
+            <div className="validate-header-badge">
+              <Building2 size={13} />
+              <span>FMP • Palhoça</span>
             </div>
-            <Link
-              to="/login"
-              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg border border-slate-700/80 font-medium transition-all"
-            >
-              <LogIn className="w-3.5 h-3.5 text-emerald-400" />
+            <Link to="/login" className="btn-header-login">
+              <LogIn size={14} />
               <span>Acessar</span>
             </Link>
-          </div>
+          </nav>
         </div>
       </header>
 
-      {/* Conteúdo Principal */}
-      <main className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-12 flex-1 flex flex-col items-center">
-        {/* Hero Section */}
-        <div className="text-center mb-8 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4 shadow-sm backdrop-blur-md">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+      {/* ── CONTEÚDO PRINCIPAL ────────────────────────────── */}
+      <main className="validate-main">
+
+        {/* Hero */}
+        <div className="validate-hero">
+          <div className="validate-hero-badge">
+            <ShieldCheck size={14} />
             <span>Auditoria Criptográfica de Autenticidade Digital</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-white leading-tight">
-            Consulte a Autenticidade de <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">Certificados e Declarações</span>
-          </h2>
-          <p className="text-sm text-slate-400 mt-3 max-w-lg mx-auto leading-relaxed">
-            Insira o código verificador (hash) impresso no rodapé do documento oficial ou escaneie o QR Code para auditar sua veracidade em tempo real.
+          <h1>
+            Valide <span>Certificados e Declarações</span> Oficiais
+          </h1>
+          <p>
+            Insira o código verificador (Hash) impresso no rodapé do documento oficial ou escaneie o QR Code para
+            auditar sua veracidade em tempo real, diretamente na base de dados da FMP.
           </p>
         </div>
 
-        {/* Formulário de Busca */}
-        <div className="w-full max-w-2xl bg-slate-900/90 border border-slate-800/90 p-2 sm:p-2.5 rounded-2xl shadow-2xl shadow-black/60 mb-8 backdrop-blur-xl">
+        {/* Formulário de busca */}
+        <div className="validate-search-card">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleValidate();
             }}
-            className="flex flex-col sm:flex-row gap-2"
+            className="validate-search-form"
           >
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <div className="validate-search-input-wrap">
+              <span className="validate-search-icon">
+                <Search size={16} />
+              </span>
               <input
+                id="hash-input"
                 type="text"
+                className="validate-input"
                 value={hashInput}
                 onChange={(e) => setHashInput(e.target.value)}
-                placeholder="Insira o código verificador (UUID/Hash)..."
-                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition-all font-mono shadow-inner"
+                placeholder="Insira o código verificador (UUID / Hash)..."
+                autoComplete="off"
               />
             </div>
             <button
               type="submit"
+              className="btn-validate"
               disabled={loading}
-              className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white font-semibold text-sm px-6 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shrink-0 active:scale-[0.98]"
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="spin" />
                   <span>Consultando...</span>
                 </>
               ) : (
                 <>
                   <span>Verificar</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight size={16} />
                 </>
               )}
             </button>
@@ -215,152 +213,198 @@ export default function ValidateCertificatePage() {
 
         {/* Feedback de Erro */}
         {error && (
-          <div className="w-full max-w-2xl bg-red-950/40 border border-red-800/60 p-5 rounded-2xl text-red-200 flex items-start gap-4 mb-8 backdrop-blur-md">
-            <XCircle className="w-6 h-6 text-red-400 shrink-0 mt-0.5" />
+          <div className="validate-error">
+            <XCircle size={20} />
             <div>
-              <h4 className="font-semibold text-sm text-red-300">Documento Não Validado</h4>
-              <p className="text-xs text-red-200/80 mt-1 leading-relaxed">{error}</p>
+              <h4>Documento Não Validado</h4>
+              <p>{error}</p>
             </div>
           </div>
         )}
 
-        {/* Cartão de Resultado da Validação */}
+        {/* ── RESULTADO DA VALIDAÇÃO ─────────────────────── */}
         {certificate && (
-          <div className="w-full max-w-2xl bg-slate-900/90 border border-emerald-500/40 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-emerald-950/40 relative overflow-hidden backdrop-blur-xl">
-            {/* Faixa decorativa superior com gradiente de alta segurança */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
+          <div className="validate-result-card">
+            {/* Faixa topo decorativa */}
+            <div className="validate-result-topbar" />
 
-            {/* Cabeçalho do Certificado */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
-                  <CheckCircle2 className="w-7 h-7" />
+            {/* Cabeçalho do resultado */}
+            <div className="validate-result-header">
+              <div className="validate-status-valid">
+                <div className="validate-status-icon">
+                  <CheckCircle2 size={24} />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                      DOCUMENTO AUTÊNTICO E VÁLIDO
-                    </span>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-white mt-1">
-                    {certificate.documentTypeName}
-                  </h3>
+                  <span className="validate-status-label">DOCUMENTO AUTÊNTICO E VÁLIDO</span>
+                  <h3 className="validate-status-title">{certificate.documentTypeName}</h3>
                 </div>
               </div>
 
-              <div className="sm:text-right shrink-0">
-                <div className="flex items-center sm:justify-end gap-1.5 text-xs text-emerald-400 font-semibold">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Autenticidade Garantida</span>
-                </div>
-                <span className="text-xs text-slate-400 block mt-0.5">Em conformidade com o regimento</span>
+              <div className="validate-authentic-badge">
+                <Lock size={13} />
+                <span>Autenticidade Garantida — Em conformidade com o regimento</span>
               </div>
             </div>
 
-            {/* Dados do Titular e Curso/Doação */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-1.5">
-                  <User className="w-4 h-4 text-emerald-400" />
-                  <span>Beneficiário / Titular</span>
+            {/* Grid de dados */}
+            <div className="validate-fields-grid">
+              {/* Beneficiário */}
+              <div className="validate-field">
+                <div className="validate-field-label">
+                  <User size={13} />
+                  Beneficiário / Titular
                 </div>
-                <p className="text-base font-bold text-white">{certificate.beneficiaryName}</p>
-                <p className="text-xs text-slate-400 mt-1 font-mono">CPF: {certificate.beneficiaryCpfMasked}</p>
+                <p className="validate-field-value">{certificate.beneficiaryName}</p>
+                <p className="validate-field-sub">CPF: {certificate.beneficiaryCpfMasked}</p>
               </div>
 
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-1.5">
-                  <Award className="w-4 h-4 text-emerald-400" />
-                  <span>Título do Documento</span>
+              {/* Título */}
+              <div className="validate-field">
+                <div className="validate-field-label">
+                  <Award size={13} />
+                  Título do Documento
                 </div>
-                <p className="text-base font-bold text-emerald-300">{certificate.title}</p>
+                <p className="validate-field-value accent">{certificate.title}</p>
                 {certificate.description && (
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">{certificate.description}</p>
+                  <p className="validate-field-sub">{certificate.description}</p>
                 )}
               </div>
 
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-1.5">
-                  <Clock className="w-4 h-4 text-emerald-400" />
-                  <span>Horas Complementares Computadas</span>
+              {/* Horas */}
+              <div className="validate-field">
+                <div className="validate-field-label">
+                  <Clock size={13} />
+                  Horas Complementares Computadas
                 </div>
-                <p className="text-2xl font-extrabold text-white">
-                  {certificate.hoursCompleted}{' '}
-                  <span className="text-sm font-normal text-slate-400">horas registradas</span>
+                <p className="validate-hours-big">
+                  {certificate.hoursCompleted}
+                  <span className="validate-hours-unit"> horas registradas</span>
                 </p>
               </div>
 
-              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-400 mb-1.5">
-                  <Calendar className="w-4 h-4 text-emerald-400" />
-                  <span>Data e Hora da Emissão</span>
+              {/* Data de emissão */}
+              <div className="validate-field">
+                <div className="validate-field-label">
+                  <Calendar size={13} />
+                  Data e Hora da Emissão
                 </div>
-                <p className="text-sm font-semibold text-slate-200">{formatDate(certificate.issuedAt)}</p>
-                <p className="text-xs text-emerald-400/90 mt-1 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  <span>Assinatura digital institucional registrada</span>
+                <p className="validate-field-value">{formatDate(certificate.issuedAt)}</p>
+                <p className="validate-field-sub" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Sparkles size={11} style={{ color: '#0A3A60' }} />
+                  Assinatura digital institucional registrada
                 </p>
               </div>
+
+              {/* Detalhes extras se houver */}
+              {certificate.details?.courseTitle && (
+                <div className="validate-field">
+                  <div className="validate-field-label">
+                    <FileText size={13} />
+                    Curso / Projeto Associado
+                  </div>
+                  <p className="validate-field-value">{certificate.details.courseTitle}</p>
+                  {certificate.details.classroomCode && (
+                    <p className="validate-field-sub">Turma: {certificate.details.classroomCode}</p>
+                  )}
+                </div>
+              )}
+
+              {certificate.details?.donationItemsCount != null && (
+                <div className="validate-field">
+                  <div className="validate-field-label">
+                    <Award size={13} />
+                    Itens Doados Vinculados
+                  </div>
+                  <p className="validate-hours-big">
+                    {certificate.details.donationItemsCount}
+                    <span className="validate-hours-unit"> itens</span>
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Rodapé de Hash Verificador */}
-            <div className="p-4 bg-slate-950 rounded-xl border border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <span className="text-slate-500 uppercase font-bold tracking-wider text-[10px] block mb-1">
-                  Código Verificador Oficial (Hash)
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-emerald-400 text-xs sm:text-sm select-all break-all">
-                    {certificate.authHash}
-                  </span>
+            {/* Hash e botão PDF */}
+            <div className="validate-hash-area">
+              <div className="validate-hash-info">
+                <span className="validate-hash-label">Código Verificador Oficial (Hash)</span>
+                <div className="validate-hash-row">
+                  <span className="validate-hash-code">{certificate.authHash}</span>
                   <button
+                    className={`btn-copy ${copied ? 'copied' : ''}`}
                     onClick={() => copyToClipboard(certificate.authHash)}
                     title="Copiar código verificador"
-                    className="p-1.5 text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 rounded-lg border border-slate-800 transition-colors shrink-0"
+                    type="button"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? <Check size={13} /> : <Copy size={13} />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="validate-btn-row">
                 <a
                   href={`/api/v1/certificates/${certificate.authHash}/pdf`}
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-medium px-5 py-2.5 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 text-xs shrink-0"
+                  className="btn-open-pdf"
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileText size={14} />
                   <span>Abrir PDF Oficial</span>
-                  <ExternalLink className="w-3 h-3 opacity-70 ml-0.5" />
+                  <ExternalLink size={12} style={{ opacity: 0.7 }} />
                 </a>
               </div>
             </div>
           </div>
         )}
 
-        {/* Card informativo de instruções quando nenhum certificado foi buscado ainda */}
+        {/* ── ESTADO INICIAL (sem busca) ─────────────────── */}
         {!certificate && !loading && !error && (
-          <div className="w-full max-w-2xl bg-slate-900/40 border border-slate-800/60 p-6 rounded-2xl text-center text-xs text-slate-400 backdrop-blur-sm">
-            <div className="w-10 h-10 rounded-full bg-slate-800/80 text-emerald-400 flex items-center justify-center mx-auto mb-3">
-              <QrCode className="w-5 h-5" />
+          <>
+            <div className="validate-empty-card">
+              <div className="validate-empty-icon">
+                <QrCode size={24} />
+              </div>
+              <p className="validate-empty-title">Como funciona a validação?</p>
+              <p className="validate-empty-desc">
+                Todos os certificados e declarações de doação emitidos pelo COPER 3.0 possuem um identificador
+                criptográfico único (Hash UUID) e um QR Code. Ao escanear o QR Code ou inserir o código acima,
+                a autenticidade e as horas são conferidas instantaneamente na base de dados oficial da FMP.
+              </p>
             </div>
-            <p className="font-medium text-slate-300">Como funciona a validação?</p>
-            <p className="mt-1 max-w-md mx-auto leading-relaxed">
-              Todos os certificados e declarações de doação emitidos pelo COPER 3.0 possuem um identificador criptográfico único (Hash UUID) e um QR Code. Ao escanear o QR Code, a autenticidade e as horas são conferidas instantaneamente na base de dados oficial.
-            </p>
-          </div>
+
+            {/* Passos */}
+            <div className="validate-steps">
+              <div className="validate-step-card">
+                <div className="validate-step-num">1</div>
+                <p className="validate-step-title">Localize o Código</p>
+                <p className="validate-step-desc">
+                  Encontre o código verificador (Hash) no rodapé do certificado ou declaração oficial.
+                </p>
+              </div>
+              <div className="validate-step-card">
+                <div className="validate-step-num">2</div>
+                <p className="validate-step-title">Insira ou Escaneie</p>
+                <p className="validate-step-desc">
+                  Cole o código no campo acima ou escaneie o QR Code com seu celular para preenchimento automático.
+                </p>
+              </div>
+              <div className="validate-step-card">
+                <div className="validate-step-num">3</div>
+                <p className="validate-step-title">Resultado Imediato</p>
+                <p className="validate-step-desc">
+                  O sistema retorna autenticidade, dados do titular e horas computadas em tempo real.
+                </p>
+              </div>
+            </div>
+          </>
         )}
       </main>
 
-      {/* Footer Institucional */}
-      <footer className="w-full border-t border-slate-800/80 bg-slate-950/80 py-6 text-center text-xs text-slate-400">
-        <div className="max-w-5xl mx-auto px-4">
-          <p>© 2026 Sistema COPER 3.0 • Faculdade Municipal de Palhoça (FMP) • Todos os direitos reservados.</p>
-          <p className="mt-1 text-slate-400">
-            Ambiente de Verificação Criptográfica de Documentos Oficiais e Extensão Universitária.
-          </p>
-        </div>
+      {/* ── FOOTER INSTITUCIONAL ──────────────────────────── */}
+      <footer className="validate-footer">
+        <p>
+          © 2026 <strong>Sistema COPER 3.0</strong> • Faculdade Municipal de Palhoça (FMP) •
+          Verificação Criptográfica de Documentos Oficiais.
+        </p>
       </footer>
     </div>
   );
