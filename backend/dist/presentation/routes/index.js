@@ -12,6 +12,7 @@ const enrollmentRoutes_js_1 = __importDefault(require("./enrollmentRoutes.js"));
 const attendanceRoutes_js_1 = __importDefault(require("./attendanceRoutes.js"));
 const certificateRoutes_js_1 = __importDefault(require("./certificateRoutes.js"));
 const publicRoutes_js_1 = __importDefault(require("./publicRoutes.js"));
+const legacyCompatRoutes_js_1 = __importDefault(require("./legacyCompatRoutes.js"));
 const apiRouter = (0, express_1.Router)();
 apiRouter.use('/auth', authRoutes_js_1.default);
 apiRouter.use('/donations', donationRoutes_js_1.default);
@@ -21,6 +22,7 @@ apiRouter.use('/enrollments', enrollmentRoutes_js_1.default);
 apiRouter.use('/attendances', attendanceRoutes_js_1.default);
 apiRouter.use('/certificates', certificateRoutes_js_1.default);
 apiRouter.use('/public', publicRoutes_js_1.default);
+apiRouter.use('/', legacyCompatRoutes_js_1.default);
 const v1Router = (0, express_1.Router)();
 v1Router.use('/auth', authRoutes_js_1.default);
 v1Router.use('/donations', donationRoutes_js_1.default);
@@ -30,6 +32,7 @@ v1Router.use('/enrollments', enrollmentRoutes_js_1.default);
 v1Router.use('/attendances', attendanceRoutes_js_1.default);
 v1Router.use('/certificates', certificateRoutes_js_1.default);
 v1Router.use('/public', publicRoutes_js_1.default);
+v1Router.use('/', legacyCompatRoutes_js_1.default);
 apiRouter.use('/v1', v1Router);
 apiRouter.get('/health', (req, res) => {
     res.status(200).json({

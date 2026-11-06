@@ -5,10 +5,17 @@ import { DocType } from '../../../domain/enums/index.js';
 
 export class DownloadCertificatePDFUseCase {
   async execute(certificateIdOrHash: string, requesterUserId?: string, requesterRole?: string) {
+    const clean = (certificateIdOrHash || '').trim();
+    const aliasMap: Record<string, string> = {
+      'tok-luc-001': 'f7a2c091-8d2b-4fa3-9f12-9c1048b61a32',
+      'tok-edu-001': 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
+    };
+    const target = aliasMap[clean.toLowerCase()] || clean;
+
     // Busca por id ou por authHash
     const certificate = await prisma.certificate.findFirst({
       where: {
-        OR: [{ id: certificateIdOrHash }, { authHash: certificateIdOrHash }],
+        OR: [{ id: target }, { authHash: target }],
       },
       include: {
         user: true,

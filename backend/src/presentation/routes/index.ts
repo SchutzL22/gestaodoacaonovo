@@ -7,6 +7,7 @@ import enrollmentRoutes from './enrollmentRoutes.js';
 import attendanceRoutes from './attendanceRoutes.js';
 import certificateRoutes from './certificateRoutes.js';
 import publicRoutes from './publicRoutes.js';
+import legacyCompatRoutes from './legacyCompatRoutes.js';
 
 const apiRouter = Router();
 
@@ -19,6 +20,7 @@ apiRouter.use('/enrollments', enrollmentRoutes);
 apiRouter.use('/attendances', attendanceRoutes);
 apiRouter.use('/certificates', certificateRoutes);
 apiRouter.use('/public', publicRoutes);
+apiRouter.use('/', legacyCompatRoutes);
 
 // Suporte explícito ao prefixo /v1
 const v1Router = Router();
@@ -30,6 +32,7 @@ v1Router.use('/enrollments', enrollmentRoutes);
 v1Router.use('/attendances', attendanceRoutes);
 v1Router.use('/certificates', certificateRoutes);
 v1Router.use('/public', publicRoutes);
+v1Router.use('/', legacyCompatRoutes);
 apiRouter.use('/v1', v1Router);
 
 // Health check endpoint

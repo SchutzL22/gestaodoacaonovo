@@ -618,7 +618,7 @@ export default function LandingPage() {
           >
             <input
               type="text"
-              placeholder="Digite o código verificador (ex: tok-luc-001)"
+              placeholder="Digite o código verificador (ex: tok-luc-001 ou hash UUID)"
               value={quickHash}
               onChange={(e) => setQuickHash(e.target.value)}
               className="validation-input"
@@ -673,7 +673,7 @@ export default function LandingPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '0.9rem', color: '#cbd5e1' }}>
                 <div>
                   <span style={{ color: '#94a3b8', fontSize: '0.78rem', display: 'block' }}>BENEFICIÁRIO(A):</span>
-                  <strong>{valResult.beneficiaryName}</strong>
+                  <strong>{valResult.holderName || valResult.beneficiaryName}</strong>
                 </div>
                 <div>
                   <span style={{ color: '#94a3b8', fontSize: '0.78rem', display: 'block' }}>CAMPANHA / CURSO:</span>
@@ -681,7 +681,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <span style={{ color: '#94a3b8', fontSize: '0.78rem', display: 'block' }}>HORAS COMPLEMENTARES:</span>
-                  <strong style={{ color: '#38bdf8' }}>+{valResult.hoursCompleted}h concedidas</strong>
+                  <strong style={{ color: '#38bdf8' }}>+{valResult.hoursEarned ?? valResult.hoursCompleted ?? 0}h concedidas</strong>
                 </div>
                 <div>
                   <span style={{ color: '#94a3b8', fontSize: '0.78rem', display: 'block' }}>DATA DE EMISSÃO:</span>
@@ -699,18 +699,16 @@ export default function LandingPage() {
                   <span>Ver Página Completa de Auditoria</span>
                 </a>
 
-                {valResult.details?.doacaoId && (
-                  <a
-                    href={`/api/certificados/download/${valResult.details.doacaoId}`}
-                    className="btn-hero-primary"
-                    style={{ fontSize: '0.85rem', padding: '8px 16px' }}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Download size={16} />
-                    <span>Baixar PDF Oficial</span>
-                  </a>
-                )}
+                <a
+                  href={`/api/v1/certificates/${encodeURIComponent(valResult.authHash)}/pdf`}
+                  className="btn-hero-primary"
+                  style={{ fontSize: '0.85rem', padding: '8px 16px' }}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Download size={16} />
+                  <span>Baixar PDF Oficial</span>
+                </a>
               </div>
             </div>
           )}

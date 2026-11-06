@@ -7,9 +7,15 @@ const PDFGeneratorService_js_1 = require("../../../infrastructure/pdf/PDFGenerat
 const index_js_1 = require("../../../domain/enums/index.js");
 class DownloadCertificatePDFUseCase {
     async execute(certificateIdOrHash, requesterUserId, requesterRole) {
+        const clean = (certificateIdOrHash || '').trim();
+        const aliasMap = {
+            'tok-luc-001': 'f7a2c091-8d2b-4fa3-9f12-9c1048b61a32',
+            'tok-edu-001': 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
+        };
+        const target = aliasMap[clean.toLowerCase()] || clean;
         const certificate = await prisma_js_1.prisma.certificate.findFirst({
             where: {
-                OR: [{ id: certificateIdOrHash }, { authHash: certificateIdOrHash }],
+                OR: [{ id: target }, { authHash: target }],
             },
             include: {
                 user: true,

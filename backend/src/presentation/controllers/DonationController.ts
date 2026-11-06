@@ -39,6 +39,45 @@ export class DonationController {
     }
   };
 
+  approve = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) throw AppError.unauthorized();
+      const id = req.params.id as string;
+      const hoursEarned = Number(req.body?.hoursEarned) || 10;
+      const result = await this.validateDonationUseCase.execute(id, req.user.userId, {
+        status: 'APPROVED' as any,
+        hoursEarned,
+      });
+      res.status(200).json({
+        status: 'success',
+        message: 'Doação aprovada com sucesso!',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  reject = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) throw AppError.unauthorized();
+      const id = req.params.id as string;
+      const rejectionReason = req.body?.rejectionReason || 'Item ou documentação não aprovada.';
+      const result = await this.validateDonationUseCase.execute(id, req.user.userId, {
+        status: 'REJECTED' as any,
+        hoursEarned: 0,
+        rejectionReason,
+      });
+      res.status(200).json({
+        status: 'success',
+        message: 'Doação reprovada.',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   list = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) throw AppError.unauthorized();

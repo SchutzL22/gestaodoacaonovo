@@ -140,8 +140,37 @@ export const deletarCampanha = (id) =>
 // ─── DOAÇÕES ─────────────────────────────────────────────────────────────────
 export const listarDoacoes = (page = 1, limit = 50) =>
   api.get(`/donations?page=${page}&limit=${limit}`)
-    .then((r) => r.data?.data || r.data)
-    .catch(() => api.get('/doacoes').then((r) => r.data));
+    .then((r) => {
+      const respData = r.data?.data || r.data;
+      const rawList = Array.isArray(respData) ? respData : (respData?.donations || []);
+      return rawList.map((d) => ({
+        ...d,
+        id: d.id,
+        data: d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : '',
+        aluno: d.user?.name || d.aluno || 'Estudante FMP',
+        matricula: d.user?.cpf || d.matricula || '',
+        item: d.items?.[0]?.description || d.item || 'Doação Solidária',
+        quantidade: d.items?.[0]?.quantity || d.quantidade || 1,
+        horas: d.hoursEarned ?? d.horas ?? 0,
+        status: d.status === 'APPROVED' ? 'Aprovada' : d.status === 'REJECTED' ? 'Reprovada' : 'Pendente',
+        statusRaw: d.status,
+      }));
+    })
+    .catch(() =>
+      api.get('/doacoes').then((r) => {
+        const list = Array.isArray(r.data) ? r.data : [];
+        return list.map((d) => ({
+          ...d,
+          data: d.data || (d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : ''),
+          aluno: d.aluno || d.user?.name || 'Estudante FMP',
+          matricula: d.matricula || d.user?.cpf || '',
+          item: d.item || d.items?.[0]?.description || 'Doação Solidária',
+          quantidade: d.quantidade || d.items?.[0]?.quantity || 1,
+          horas: d.horas ?? d.hoursEarned ?? 0,
+          status: d.status === 'APPROVED' ? 'Aprovada' : d.status === 'REJECTED' ? 'Reprovada' : (d.status || 'Pendente'),
+        }));
+      })
+    );
 
 export const listarDoacoesPorAluno = (alunoId) =>
   api.get(`/donations/student/${alunoId}`)
@@ -162,17 +191,22 @@ export const registrarDoacao = (dados) => {
 };
 
 export const validarDoacao = (id, status, motivoReprovacao) => {
-  if (status === 'APPROVED' || status === 'Aprovada') {
-    return api.patch(`/donations/${id}/approve`).then((r) => r.data?.data || r.data);
+  const isApproved = status === 'APPROVED' || status === 'Aprovada' || status === 'APROVADA';
+  if (isApproved) {
+    return api.patch(`/donations/${id}/approve`)
+      .then((r) => r.data?.data || r.data)
+      .catch(() => api.patch(`/donations/${id}/validate`, { status: 'APPROVED', hoursEarned: 10 }).then((r) => r.data?.data || r.data));
   }
-  return api.patch(`/donations/${id}/reject`, { rejectionReason: motivoReprovacao }).then((r) => r.data?.data || r.data);
+  return api.patch(`/donations/${id}/reject`, { rejectionReason: motivoReprovacao })
+    .then((r) => r.data?.data || r.data)
+    .catch(() => api.patch(`/donations/${id}/validate`, { status: 'REJECTED', rejectionReason: motivoReprovacao, hoursEarned: 0 }).then((r) => r.data?.data || r.data));
 };
 
 export const aprovarDoacao = (id) =>
-  api.patch(`/donations/${id}/approve`).then((r) => r.data.data);
+  api.patch(`/donations/${id}/approve`).then((r) => r.data?.data || r.data);
 
 export const rejeitarDoacao = (id, rejectionReason) =>
-  api.patch(`/donations/${id}/reject`, { rejectionReason }).then((r) => r.data.data);
+  api.patch(`/donations/${id}/reject`, { rejectionReason }).then((r) => r.data?.data || r.data);
 
 export const editarDoacao = (id, dados) =>
   api.put(`/doacoes/${id}`, dados).then((r) => r.data);

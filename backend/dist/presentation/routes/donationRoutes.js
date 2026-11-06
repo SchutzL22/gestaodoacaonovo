@@ -14,4 +14,6 @@ router.post('/', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.ALUNO, in
 router.get('/', donationController.list);
 router.get('/:id', donationController.getById);
 router.patch('/:id/validate', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.COPER), (0, validationMiddleware_js_1.validate)({ body: donation_dto_js_1.validateDonationSchema }), donationController.validate);
+router.patch('/:id/approve', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.COPER), donationController.approve);
+router.patch('/:id/reject', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.COPER), donationController.reject);
 exports.default = router;

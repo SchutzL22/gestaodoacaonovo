@@ -5,6 +5,8 @@ export declare class DonationController {
     private validateDonationUseCase;
     create: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     validate: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+    approve: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+    reject: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     list: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     getById: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 }

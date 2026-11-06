@@ -34,4 +34,16 @@ router.patch(
   donationController.validate
 );
 
+router.patch(
+  '/:id/approve',
+  requireRoles(Role.COPER),
+  donationController.approve
+);
+
+router.patch(
+  '/:id/reject',
+  requireRoles(Role.COPER),
+  donationController.reject
+);
+
 export default router;

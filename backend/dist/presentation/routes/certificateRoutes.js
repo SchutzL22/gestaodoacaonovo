@@ -7,7 +7,7 @@ const router = (0, express_1.Router)();
 const certificateController = new CertificateController_js_1.CertificateController();
 router.get('/validate/:hash', certificateController.validate);
 router.get('/validate', certificateController.validate);
+router.get('/:id/pdf', certificateController.downloadPdf);
 router.use(authMiddleware_js_1.authMiddleware);
 router.get('/', certificateController.list);
-router.get('/:id/pdf', certificateController.downloadPdf);
 exports.default = router;

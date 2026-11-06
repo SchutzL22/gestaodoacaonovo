@@ -40,6 +40,47 @@ class DonationController {
             next(error);
         }
     };
+    approve = async (req, res, next) => {
+        try {
+            if (!req.user)
+                throw AppError_js_1.AppError.unauthorized();
+            const id = req.params.id;
+            const hoursEarned = Number(req.body?.hoursEarned) || 10;
+            const result = await this.validateDonationUseCase.execute(id, req.user.userId, {
+                status: 'APPROVED',
+                hoursEarned,
+            });
+            res.status(200).json({
+                status: 'success',
+                message: 'Doação aprovada com sucesso!',
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    reject = async (req, res, next) => {
+        try {
+            if (!req.user)
+                throw AppError_js_1.AppError.unauthorized();
+            const id = req.params.id;
+            const rejectionReason = req.body?.rejectionReason || 'Item ou documentação não aprovada.';
+            const result = await this.validateDonationUseCase.execute(id, req.user.userId, {
+                status: 'REJECTED',
+                hoursEarned: 0,
+                rejectionReason,
+            });
+            res.status(200).json({
+                status: 'success',
+                message: 'Doação reprovada.',
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
     list = async (req, res, next) => {
         try {
             if (!req.user)

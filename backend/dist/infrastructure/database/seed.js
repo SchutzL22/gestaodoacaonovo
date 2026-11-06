@@ -22,6 +22,17 @@ async function seed() {
             role: index_js_1.UserRole.COPER,
         },
     });
+    await prisma_js_1.prisma.user.upsert({
+        where: { email: 'admin@fmpsc.edu.br' },
+        update: {},
+        create: {
+            name: 'Administrador COPER FMP',
+            email: 'admin@fmpsc.edu.br',
+            cpf: '00011122299',
+            passwordHash: adminPassword,
+            role: index_js_1.UserRole.COPER,
+        },
+    });
     const professorLibras = await prisma_js_1.prisma.user.upsert({
         where: { email: 'professor.libras@coper.edu.br' },
         update: {},
@@ -51,6 +62,17 @@ async function seed() {
             name: 'Lucas Alexandre Vieira',
             email: 'lucas.aluno@aluno.coper.edu.br',
             cpf: '22233344455',
+            passwordHash: alunoPassword,
+            role: index_js_1.UserRole.ALUNO,
+        },
+    });
+    await prisma_js_1.prisma.user.upsert({
+        where: { email: 'lucas@aluno.fmpsc.edu.br' },
+        update: {},
+        create: {
+            name: 'Lucas Alexandre Vieira',
+            email: 'lucas@aluno.fmpsc.edu.br',
+            cpf: '22233344499',
             passwordHash: alunoPassword,
             role: index_js_1.UserRole.ALUNO,
         },
@@ -304,6 +326,35 @@ async function seed() {
             },
         },
     });
+    await prisma_js_1.prisma.certificate.upsert({
+        where: { authHash: 'tok-luc-001' },
+        update: {},
+        create: {
+            userId: aluno1.id,
+            type: index_js_1.DocType.DONATION_DECLARATION,
+            authHash: 'tok-luc-001',
+            validationUrl: `${frontendUrl}/validar?code=tok-luc-001`,
+            title: 'Declaração Oficial de Doação Social - Cestas de Alimentos',
+            description: 'Doação de alimentos não perecíveis entregues na sede da FMP.',
+            hours: 10,
+            metadata: { items: '2x Arroz 5kg, 4x Feijão 1kg', validator: admin.name },
+        },
+    });
+    await prisma_js_1.prisma.certificate.upsert({
+        where: { authHash: 'tok-edu-001' },
+        update: {},
+        create: {
+            userId: aluno2.id,
+            type: index_js_1.DocType.COURSE_CERTIFICATE,
+            authHash: 'tok-edu-001',
+            validationUrl: `${frontendUrl}/validar?code=tok-edu-001`,
+            title: 'Certificado de Conclusão de Curso Extracurricular - Libras Avançado',
+            description: 'Conclusão com 100% de presença no curso de Língua Brasileira de Sinais.',
+            hours: 40,
+            metadata: { course: 'Libras Avançado', instructor: 'Prof. Rafael Santos' },
+        },
+    });
+    console.log('[Seed] Certificados tok-luc-001 e tok-edu-001 configurados.');
     console.log('[Seed] 3 Doações Aprovadas (com Certificados) e 1 Doação Pendente criadas.');
     console.log('[Seed] Povoamento concluído com sucesso!');
 }

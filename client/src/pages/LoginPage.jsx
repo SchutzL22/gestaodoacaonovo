@@ -17,11 +17,11 @@ const PAINEL = { LOGIN: 'login', CADASTRO: 'cadastro', ESQUECI: 'esqueci' };
 
 // Perfis RBAC suportados
 const PERFIS = [
-  { id: 'ALUNO', label: 'Aluno', icon: faGraduationCap, hint: 'Acesso a horas e campanhas', defaultEmail: 'lucas@aluno.fmpsc.edu.br', defaultPass: 'lucas123' },
-  { id: 'PROFESSOR', label: 'Professor', icon: faChalkboardTeacher, hint: 'Chamada e turmas', defaultEmail: 'professor@fmpsc.edu.br', defaultPass: 'prof123' },
-  { id: 'COPER', label: 'COPER / Admin', icon: faShieldHalved, hint: 'Gestão completa', defaultEmail: 'admin@fmpsc.edu.br', defaultPass: 'admin123' },
-  { id: 'EMPRESARIO', label: 'Empresário', icon: faBriefcase, hint: 'Painel ESG e impacto', defaultEmail: 'parceiro@empresa.com.br', defaultPass: 'esg123' },
-  { id: 'CIVIL', label: 'Civil', icon: faUsers, hint: 'Comunidade e doador', defaultEmail: 'cidadao@comunidade.org', defaultPass: 'civil123' }
+  { id: 'ALUNO', label: 'Aluno', icon: faGraduationCap, hint: 'Acesso a horas e campanhas', defaultEmail: 'lucas.aluno@aluno.coper.edu.br', defaultPass: 'aluno123' },
+  { id: 'PROFESSOR', label: 'Professor', icon: faChalkboardTeacher, hint: 'Chamada e turmas', defaultEmail: 'professor.libras@coper.edu.br', defaultPass: 'prof123' },
+  { id: 'COPER', label: 'COPER / Admin', icon: faShieldHalved, hint: 'Gestão completa', defaultEmail: 'coper@coper.edu.br', defaultPass: 'admin123' },
+  { id: 'EMPRESARIO', label: 'Empresário', icon: faBriefcase, hint: 'Painel ESG e impacto', defaultEmail: 'contato@techparceira.com.br', defaultPass: 'empresa123' },
+  { id: 'CIVIL', label: 'Civil', icon: faUsers, hint: 'Comunidade e doador', defaultEmail: 'contato@techparceira.com.br', defaultPass: 'empresa123' }
 ];
 
 export default function LoginPage() {
@@ -35,7 +35,7 @@ export default function LoginPage() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   // Login
-  const [email, setEmail] = useState('admin@fmpsc.edu.br');
+  const [email, setEmail] = useState('coper@coper.edu.br');
   const [senha, setSenha] = useState('admin123');
 
   // Cadastro
@@ -264,7 +264,7 @@ export default function LoginPage() {
                   className="demo-chip"
                   onClick={() => {
                     setPerfilSelecionado('COPER');
-                    setEmail('admin@fmpsc.edu.br');
+                    setEmail('coper@coper.edu.br');
                     setSenha('admin123');
                   }}
                 >
@@ -275,8 +275,8 @@ export default function LoginPage() {
                   className="demo-chip"
                   onClick={() => {
                     setPerfilSelecionado('ALUNO');
-                    setEmail('lucas@aluno.fmpsc.edu.br');
-                    setSenha('lucas123');
+                    setEmail('lucas.aluno@aluno.coper.edu.br');
+                    setSenha('aluno123');
                   }}
                 >
                   Aluno (Lucas)
@@ -286,11 +286,22 @@ export default function LoginPage() {
                   className="demo-chip"
                   onClick={() => {
                     setPerfilSelecionado('ALUNO');
-                    setEmail('davi@aluno.fmpsc.edu.br');
-                    setSenha('davi123');
+                    setEmail('mariana.aluna@aluno.coper.edu.br');
+                    setSenha('aluno123');
                   }}
                 >
-                  Aluno (Davi)
+                  Aluna (Mariana)
+                </button>
+                <button
+                  type="button"
+                  className="demo-chip"
+                  onClick={() => {
+                    setPerfilSelecionado('PROFESSOR');
+                    setEmail('professor.libras@coper.edu.br');
+                    setSenha('prof123');
+                  }}
+                >
+                  Professor (Libras)
                 </button>
               </div>
             </div>

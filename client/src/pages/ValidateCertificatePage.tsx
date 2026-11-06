@@ -74,7 +74,7 @@ export default function ValidateCertificatePage() {
     setCertificate(null);
 
     try {
-      const response = await axios.get(`/api/v1/certificates/validate/${encodeURIComponent(code)}`);
+      const response = await axios.get(`/api/public/validar/${encodeURIComponent(code)}`);
       if (response.data?.data) {
         setCertificate(response.data.data);
       } else {
@@ -209,6 +209,49 @@ export default function ValidateCertificatePage() {
               )}
             </button>
           </form>
+
+          {/* Atalhos para testes rápidos */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap', fontSize: '0.82rem', color: '#94a3b8' }}>
+            <span>Códigos de teste rápido:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setHashInput('tok-luc-001');
+                handleValidate('tok-luc-001');
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#38bdf8',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                cursor: 'pointer',
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+              }}
+            >
+              tok-luc-001
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setHashInput('tok-edu-001');
+                handleValidate('tok-edu-001');
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#38bdf8',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                cursor: 'pointer',
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+              }}
+            >
+              tok-edu-001
+            </button>
+          </div>
         </div>
 
         {/* Feedback de Erro */}
@@ -309,14 +352,14 @@ export default function ValidateCertificatePage() {
                 </div>
               )}
 
-              {certificate.details?.donationItemsCount != null && (
+              {(certificate.details?.donationItemsCount ?? 0) > 0 && (
                 <div className="validate-field">
                   <div className="validate-field-label">
                     <Award size={13} />
                     Itens Doados Vinculados
                   </div>
                   <p className="validate-hours-big">
-                    {certificate.details.donationItemsCount}
+                    {certificate.details!.donationItemsCount}
                     <span className="validate-hours-unit"> itens</span>
                   </p>
                 </div>
