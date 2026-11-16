@@ -1,16 +1,5 @@
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+// Compatibilidade temporária — reexporta src/config/db.js (pg Pool)
+// para não quebrar as rotas existentes enquanto a migração MySQL → PostgreSQL ocorre.
+// TODO: remover este arquivo quando todas as rotas usarem '../config/db' diretamente.
+module.exports = require('./config/db');
 
-const pool = mysql.createPool({
-  host:     process.env.DB_HOST     || 'localhost',
-  port:     Number(process.env.DB_PORT) || 3306,
-  user:     process.env.DB_USER     || 'root',
-  password: process.env.DB_PASSWORD || '2601',
-  database: process.env.DB_NAME     || 'db_gestaodedoacao',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  dateStrings: true   // retorna datas como strings "YYYY-MM-DD"
-});
-
-module.exports = pool;
