@@ -8,30 +8,39 @@ import attendanceRoutes from './attendanceRoutes.js';
 import certificateRoutes from './certificateRoutes.js';
 import publicRoutes from './publicRoutes.js';
 import legacyCompatRoutes from './legacyCompatRoutes.js';
+import userRoutes from './userRoutes.js';
+import campaignRoutes from './campaignRoutes.js';
+import reportRoutes from './reportRoutes.js';
 
 const apiRouter = Router();
 
 // Versão 1 e rotas padrão
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/donations', donationRoutes);
+apiRouter.use('/campaigns', campaignRoutes);
+apiRouter.use('/reports', reportRoutes);
 apiRouter.use('/courses', courseRoutes);
 apiRouter.use('/classrooms', classroomRoutes);
 apiRouter.use('/enrollments', enrollmentRoutes);
 apiRouter.use('/attendances', attendanceRoutes);
 apiRouter.use('/certificates', certificateRoutes);
 apiRouter.use('/public', publicRoutes);
+apiRouter.use('/users', userRoutes);
 apiRouter.use('/', legacyCompatRoutes);
 
 // Suporte explícito ao prefixo /v1
 const v1Router = Router();
 v1Router.use('/auth', authRoutes);
 v1Router.use('/donations', donationRoutes);
+v1Router.use('/campaigns', campaignRoutes);
+v1Router.use('/reports', reportRoutes);
 v1Router.use('/courses', courseRoutes);
 v1Router.use('/classrooms', classroomRoutes);
 v1Router.use('/enrollments', enrollmentRoutes);
 v1Router.use('/attendances', attendanceRoutes);
 v1Router.use('/certificates', certificateRoutes);
 v1Router.use('/public', publicRoutes);
+v1Router.use('/users', userRoutes);
 v1Router.use('/', legacyCompatRoutes);
 apiRouter.use('/v1', v1Router);
 

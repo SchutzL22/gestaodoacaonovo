@@ -17,7 +17,10 @@ export declare class ValidateDonationUseCase {
                 email: string;
                 cpf: string;
                 role: import("@prisma/client").$Enums.UserRole;
+                matricula: string | null;
                 id: string;
+                isActive: boolean;
+                totalHoursEarned: number;
             };
             validatedBy: {
                 name: string;
@@ -26,7 +29,12 @@ export declare class ValidateDonationUseCase {
             } | null;
         } & {
             status: import("@prisma/client").$Enums.DonationStatus;
+            donorName: string | null;
+            donorCpf: string | null;
             evidenceUrl: string | null;
+            campaignId: string | null;
+            receivedById: string | null;
+            observation: string | null;
             hoursEarned: number;
             rejectionReason: string | null;
             id: string;
@@ -40,6 +48,7 @@ export declare class ValidateDonationUseCase {
             type: import("@prisma/client").$Enums.DocType;
             title: string;
             description: string | null;
+            enrollmentId: string | null;
             id: string;
             createdAt: Date;
             updatedAt: Date;
@@ -50,7 +59,6 @@ export declare class ValidateDonationUseCase {
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
             issuedAt: Date;
             donationId: string | null;
-            enrollmentId: string | null;
         } | null;
     }>;
 }

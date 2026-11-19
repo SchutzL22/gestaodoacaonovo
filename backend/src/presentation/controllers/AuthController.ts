@@ -81,4 +81,43 @@ export class AuthController {
       next(error);
     }
   };
+
+  forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email } = req.body;
+      const useCase = new (await import('../../application/use-cases/auth/ForgotPasswordUseCase.js')).ForgotPasswordUseCase();
+      const result = await useCase.execute(email);
+      res.status(200).json({ status: 'success', ...result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { token, password } = req.body;
+      const useCase = new (await import('../../application/use-cases/auth/ResetPasswordUseCase.js')).ResetPasswordUseCase();
+      const result = await useCase.execute(token, password);
+      res.status(200).json({ status: 'success', ...result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { refreshToken } = req.body;
+      if (refreshToken) {
+        await prisma.refreshToken
+          .updateMany({
+            where: { token: refreshToken },
+            data: { revoked: true },
+          })
+          .catch(() => {});
+      }
+      res.status(200).json({ status: 'success', message: 'Sessão encerrada com sucesso.' });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -12,7 +12,12 @@ export class CreateDonationUseCase {
         userId,
         status: DonationStatus.PENDING,
         authHash,
-        evidenceUrl: data.evidenceUrl,
+        evidenceUrl: data.evidenceUrl || null,
+        campaignId: data.campaignId || null,
+        receivedById: data.receivedById || null,
+        donorName: data.donorName || null,
+        donorCpf: data.donorCpf || null,
+        observation: data.observation || null,
         items: {
           create: data.items.map((item) => ({
             description: item.description,
@@ -30,6 +35,22 @@ export class CreateDonationUseCase {
             name: true,
             email: true,
             role: true,
+            matricula: true,
+            isActive: true,
+          },
+        },
+        campaign: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          },
+        },
+        receivedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
           },
         },
       },

@@ -234,8 +234,8 @@ export const buscarRelatorio = () =>
 export const listarNotificacoes = (alunoId) =>
   api.get(`/notificacoes/aluno/${alunoId}`).then((r) => r.data);
 
-// ─── CURSOS & TURMAS ────────────────────────────────────────────────────────
-export const listarCursos = (page = 1, limit = 10) =>
+// ─── CURSOS & TURMAS (MÓDULO ACADÊMICO) ──────────────────────────────────────
+export const listarCursos = (page = 1, limit = 50) =>
   api.get(`/courses?page=${page}&limit=${limit}`).then((r) => r.data.data);
 
 export const buscarCurso = (id) =>
@@ -244,34 +244,52 @@ export const buscarCurso = (id) =>
 export const criarCurso = (dados) =>
   api.post('/courses', dados).then((r) => r.data.data);
 
-export const listarTurmasDoCurso = (courseId) =>
-  api.get(`/courses/${courseId}/classrooms`).then((r) => r.data.data);
+export const listarTurmas = (status = '') =>
+  api.get(`/classrooms${status ? `?status=${status}` : ''}`).then((r) => r.data.data);
 
-export const criarTurma = (courseId, dados) =>
-  api.post(`/courses/${courseId}/classrooms`, dados).then((r) => r.data.data);
+export const buscarTurma = (id) =>
+  api.get(`/classrooms/${id}`).then((r) => r.data.data);
 
-export const listarAlunosDaTurma = (classroomId) =>
-  api.get(`/classrooms/${classroomId}/students`).then((r) => r.data.data);
+export const criarTurma = (dados) =>
+  api.post('/classrooms', dados).then((r) => r.data.data);
 
-// ─── INSCRIÇÕES ─────────────────────────────────────────────────────────────
+export const buscarFilaEspera = (classroomId) =>
+  api.get(`/classrooms/${classroomId}/waitlist`).then((r) => r.data.data);
+
+export const listarTurmasProfessor = () =>
+  api.get('/classrooms/teaching/my').then((r) => r.data.data);
+
+export const salvarNotasTurma = (classroomId, grades) =>
+  api.patch(`/classrooms/${classroomId}/grades`, { grades }).then((r) => r.data.data);
+
+export const encerrarTurma = (classroomId) =>
+  api.post(`/classrooms/${classroomId}/close`).then((r) => r.data.data);
+
+export const listarProfessores = () =>
+  api.get('/users?role=PROFESSOR').then((r) => r.data.data);
+
+// ─── INSCRIÇÕES & FILA DE ESPERA (ALUNO) ────────────────────────────────────
 export const minhasInscricoes = () =>
   api.get('/enrollments/my').then((r) => r.data.data);
+
+export const inscreverTurma = (classroomId) =>
+  api.post(`/classrooms/${classroomId}/enroll`).then((r) => r.data.data);
+
+export const cancelarInscricaoTurma = (classroomId) =>
+  api.post(`/classrooms/${classroomId}/cancel`).then((r) => r.data.data);
 
 export const inscreverEmTurma = (classroomId) =>
   api.post('/enrollments', { classroomId }).then((r) => r.data.data);
 
 export const cancelarInscricao = (enrollmentId) =>
-  api.delete(`/enrollments/${enrollmentId}`).then((r) => r.data.data);
+  api.patch(`/enrollments/${enrollmentId}/cancel`).then((r) => r.data.data);
 
-// ─── CHAMADA ────────────────────────────────────────────────────────────────
-export const abrirSessaoChamada = (classroomId, classDate) =>
-  api.post(`/attendances/${classroomId}/session`, { classDate }).then((r) => r.data.data);
+// ─── CHAMADA ONLINE ─────────────────────────────────────────────────────────
+export const registrarChamada = (classroomId, classDate, records) =>
+  api.post('/attendances', { classroomId, classDate, records }).then((r) => r.data.data);
 
-export const registrarPresenca = (sessionId, studentId, isPresent) =>
-  api.patch(`/attendances/session/${sessionId}/mark`, { studentId, isPresent }).then((r) => r.data.data);
-
-export const historicoSessoes = (classroomId) =>
-  api.get(`/attendances/${classroomId}/sessions`).then((r) => r.data.data);
+export const historicoChamadaTurma = (classroomId) =>
+  api.get(`/attendances/classroom/${classroomId}`).then((r) => r.data.data);
 
 // ─── CERTIFICADOS & VALIDAÇÃO PÚBLICA ───────────────────────────────────────
 export const meusCertificados = (page = 1, limit = 10) =>

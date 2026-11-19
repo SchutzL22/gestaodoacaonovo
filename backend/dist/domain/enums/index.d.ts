@@ -1,4 +1,4 @@
-export { UserRole, DonationStatus, CourseStatus, EnrollmentStatus, DocType, } from '@prisma/client';
+export { UserRole, DonationStatus, CourseStatus, EnrollmentStatus, DocType, CampaignStatus, } from '@prisma/client';
 import { UserRole, DocType } from '@prisma/client';
 export declare const Role: {
     ALUNO: "ALUNO";

@@ -7,6 +7,8 @@ import {
   registerSchema,
   loginSchema,
   refreshTokenSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from '../../application/dtos/auth.dto.js';
 
 const router = Router();
@@ -28,6 +30,9 @@ const authLimiter = rateLimit({
 router.post('/register', authLimiter, validate({ body: registerSchema }), authController.register);
 router.post('/login', authLimiter, validate({ body: loginSchema }), authController.login);
 router.post('/refresh', validate({ body: refreshTokenSchema }), authController.refreshToken);
+router.post('/logout', authController.logout);
 router.get('/me', authMiddleware, authController.me);
+router.post('/forgot-password', authLimiter, validate({ body: forgotPasswordSchema }), authController.forgotPassword);
+router.post('/reset-password', authLimiter, validate({ body: resetPasswordSchema }), authController.resetPassword);
 
 export default router;

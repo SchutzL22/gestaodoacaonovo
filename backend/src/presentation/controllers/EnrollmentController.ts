@@ -66,9 +66,33 @@ export class EnrollmentController {
         orderBy: { enrolledAt: 'desc' },
       });
 
+      const enrollmentsWithStats = await Promise.all(
+        enrollments.map(async (e) => {
+          const [totalClasses, studentPresents] = await Promise.all([
+            prisma.attendance.groupBy({
+              by: ['classDate'],
+              where: { classroomId: e.classroomId },
+            }),
+            prisma.attendance.count({
+              where: { classroomId: e.classroomId, studentId: req.user!.userId, isPresent: true },
+            }),
+          ]);
+          const totalCount = totalClasses.length;
+          const computedPct =
+            totalCount > 0 ? Number(((studentPresents / totalCount) * 100).toFixed(1)) : 100;
+
+          return {
+            ...e,
+            totalClasses: totalCount,
+            studentPresents,
+            computedAttendancePercentage: e.attendancePercentage ?? computedPct,
+          };
+        })
+      );
+
       res.status(200).json({
         status: 'success',
-        data: { enrollments },
+        data: { enrollments: enrollmentsWithStats },
       });
     } catch (error) {
       next(error);

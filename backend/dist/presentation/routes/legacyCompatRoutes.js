@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const index_js_1 = require("../../domain/enums/index.js");
+const NotificationService_js_1 = require("../../application/services/NotificationService.js");
 const multer_1 = __importDefault(require("multer"));
 const upload = (0, multer_1.default)({ limits: { fileSize: 10 * 1024 * 1024 } });
 const router = (0, express_1.Router)();
@@ -60,11 +61,70 @@ let itensPrioritariosState = [
 ];
 let nextCampanhaId = 4;
 let nextItemId = 6;
-router.get('/campanhas', (req, res) => {
+router.get('/campanhas', async (req, res) => {
+    try {
+        const dbCampaigns = await prisma_js_1.prisma.campaign.findMany({
+            include: { priorityItems: true },
+            orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
+        });
+        if (dbCampaigns && dbCampaigns.length > 0) {
+            return res.json(dbCampaigns.map((c) => ({
+                id: c.id,
+                titulo: c.title,
+                descricao: c.description,
+                status: c.status === 'ACTIVE'
+                    ? c.isUrgent
+                        ? 'Urgente'
+                        : 'Ativa'
+                    : c.status === 'FUTURE'
+                        ? 'Futura'
+                        : 'Encerrada',
+                dataLimite: c.endDate ? c.endDate.toISOString().split('T')[0] : null,
+                limiteHoras: c.hoursLimit,
+                regrasConversao: c.conversionRules,
+                urgente: c.isUrgent,
+                itensPrioritarios: c.priorityItems.map((p) => ({
+                    id: p.id,
+                    nome: p.name,
+                    meta: p.goal,
+                    urgencia: p.urgencyLevel,
+                    campanhaId: p.campaignId,
+                })),
+            })));
+        }
+    }
+    catch { }
     res.json(campanhasState);
 });
-router.get('/campanhas/:id', (req, res) => {
-    const id = Number(req.params.id);
+router.get('/campanhas/:id', async (req, res) => {
+    const paramId = String(req.params.id);
+    try {
+        const campaign = await prisma_js_1.prisma.campaign.findUnique({
+            where: { id: paramId },
+            include: { priorityItems: true },
+        });
+        if (campaign) {
+            return res.json({
+                id: campaign.id,
+                titulo: campaign.title,
+                descricao: campaign.description,
+                status: campaign.status,
+                dataLimite: campaign.endDate ? campaign.endDate.toISOString().split('T')[0] : null,
+                limiteHoras: campaign.hoursLimit,
+                regrasConversao: campaign.conversionRules,
+                urgente: campaign.isUrgent,
+                itensPrioritarios: (campaign.priorityItems || []).map((p) => ({
+                    id: p.id,
+                    nome: p.name,
+                    meta: p.goal,
+                    urgencia: p.urgencyLevel,
+                    campanhaId: p.campaignId,
+                })),
+            });
+        }
+    }
+    catch { }
+    const id = Number(paramId);
     const found = campanhasState.find((c) => c.id === id);
     if (!found)
         return res.status(404).json({ erro: 'Campanha não encontrada.' });
@@ -116,7 +176,23 @@ router.delete('/campanhas/:id', (req, res) => {
     campanhasState = campanhasState.filter((c) => c.id !== id);
     res.status(204).send();
 });
-router.get('/itens-prioritarios', (req, res) => {
+router.get('/itens-prioritarios', async (req, res) => {
+    try {
+        const dbItems = await prisma_js_1.prisma.priorityItem.findMany({
+            include: { campaign: true },
+            orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
+        });
+        if (dbItems && dbItems.length > 0) {
+            return res.json(dbItems.map((i) => ({
+                id: i.id,
+                nome: i.name,
+                meta: i.goal,
+                urgencia: i.urgencyLevel,
+                campanhaId: i.campaignId,
+            })));
+        }
+    }
+    catch { }
     res.json(itensPrioritariosState);
 });
 router.post('/itens-prioritarios', (req, res) => {
@@ -152,13 +228,16 @@ router.delete('/itens-prioritarios/:id', (req, res) => {
 });
 router.get('/relatorios', async (req, res, next) => {
     try {
+        const twoYearsAgo = new Date();
+        twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+        const baseWhere = { createdAt: { gte: twoYearsAgo } };
         const [totalDoacoes, totalAprovadas, totalReprovadas, totalPendentes, horasAgg] = await Promise.all([
-            prisma_js_1.prisma.donation.count(),
-            prisma_js_1.prisma.donation.count({ where: { status: 'APPROVED' } }),
-            prisma_js_1.prisma.donation.count({ where: { status: 'REJECTED' } }),
-            prisma_js_1.prisma.donation.count({ where: { status: 'PENDING' } }),
+            prisma_js_1.prisma.donation.count({ where: baseWhere }),
+            prisma_js_1.prisma.donation.count({ where: { ...baseWhere, status: 'APPROVED' } }),
+            prisma_js_1.prisma.donation.count({ where: { ...baseWhere, status: 'REJECTED' } }),
+            prisma_js_1.prisma.donation.count({ where: { ...baseWhere, status: 'PENDING' } }),
             prisma_js_1.prisma.donation.aggregate({
-                where: { status: 'APPROVED' },
+                where: { ...baseWhere, status: 'APPROVED' },
                 _sum: { hoursEarned: true },
             }),
         ]);
@@ -181,24 +260,20 @@ router.get('/relatorios', async (req, res, next) => {
     }
 });
 router.get('/notificacoes/aluno/:alunoId', (req, res) => {
-    res.json([
-        {
-            id: 1,
-            titulo: 'Doação Aprovada com Sucesso!',
-            mensagem: 'Sua doação foi validada pela equipe COPER e as horas já constam no seu histórico.',
-            dataEnvio: new Date().toISOString(),
-            lida: false,
-        },
-        {
-            id: 2,
-            titulo: 'Inscrição Ativa em Curso',
-            mensagem: 'Você está matriculado na turma de Libras 2026.1. Acompanhe sua frequência.',
-            dataEnvio: new Date(Date.now() - 86400000).toISOString(),
-            lida: true,
-        },
-    ]);
+    const notifs = NotificationService_js_1.NotificationService.getUserNotifications(String(req.params.alunoId));
+    res.json(notifs);
+});
+router.get('/notificacoes', (req, res) => {
+    const userId = req.user?.userId || req.query.userId || 'default';
+    const notifs = NotificationService_js_1.NotificationService.getUserNotifications(String(userId));
+    res.json(notifs);
+});
+router.patch('/notificacoes/:id/read', (req, res) => {
+    const success = NotificationService_js_1.NotificationService.markAsRead(String(req.params.id));
+    res.json({ success });
 });
 router.delete('/notificacoes/:id', (req, res) => {
+    NotificationService_js_1.NotificationService.deleteNotification(String(req.params.id));
     res.status(204).send();
 });
 function mapUser(u) {

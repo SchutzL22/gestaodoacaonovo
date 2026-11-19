@@ -6,7 +6,13 @@ export declare class RegisterUseCase {
             email: string;
             cpf: string;
             role: import("@prisma/client").$Enums.UserRole;
+            matricula: string | null;
+            address: string | null;
+            phone: string | null;
             id: string;
+            isActive: boolean;
+            semesterHoursLimit: number | null;
+            totalHoursEarned: number;
             createdAt: Date;
         };
         accessToken: string;

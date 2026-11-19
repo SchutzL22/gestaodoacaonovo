@@ -5,6 +5,7 @@ const prisma_js_1 = require("../../../infrastructure/database/prisma.js");
 const PasswordHasher_js_1 = require("../../../infrastructure/security/PasswordHasher.js");
 const TokenService_js_1 = require("../../../infrastructure/security/TokenService.js");
 const AppError_js_1 = require("../../../domain/errors/AppError.js");
+const index_js_1 = require("../../../domain/enums/index.js");
 class RegisterUseCase {
     async execute(data) {
         const existingEmail = await prisma_js_1.prisma.user.findUnique({
@@ -19,6 +20,14 @@ class RegisterUseCase {
         if (existingCpf) {
             throw AppError_js_1.AppError.conflict('Já existe um usuário cadastrado com este CPF.');
         }
+        if (data.matricula) {
+            const existingMatricula = await prisma_js_1.prisma.user.findUnique({
+                where: { matricula: data.matricula },
+            });
+            if (existingMatricula) {
+                throw AppError_js_1.AppError.conflict('Já existe um usuário cadastrado com esta matrícula.');
+            }
+        }
         const passwordHash = await PasswordHasher_js_1.PasswordHasher.hash(data.password);
         const user = await prisma_js_1.prisma.user.create({
             data: {
@@ -27,6 +36,12 @@ class RegisterUseCase {
                 cpf: data.cpf,
                 passwordHash,
                 role: data.role,
+                matricula: data.matricula || null,
+                address: data.address || null,
+                phone: data.phone || null,
+                isActive: true,
+                semesterHoursLimit: data.role === index_js_1.UserRole.ALUNO ? 40 : null,
+                totalHoursEarned: 0,
             },
             select: {
                 id: true,
@@ -34,6 +49,12 @@ class RegisterUseCase {
                 email: true,
                 cpf: true,
                 role: true,
+                matricula: true,
+                address: true,
+                phone: true,
+                isActive: true,
+                semesterHoursLimit: true,
+                totalHoursEarned: true,
                 createdAt: true,
             },
         });

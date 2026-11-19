@@ -12,10 +12,10 @@ const donationController = new DonationController();
 // Todas as rotas de doações requerem autenticação
 router.use(authMiddleware);
 
-// Aluno, Empresário e Civil podem solicitar/registrar doação
+// Aluno, Professor, Empresário, Civil e COPER podem registrar doação
 router.post(
   '/',
-  requireRoles(Role.ALUNO, Role.EMPRESARIO, Role.CIVIL, Role.COPER),
+  requireRoles(Role.ALUNO, Role.PROFESSOR, Role.EMPRESARIO, Role.CIVIL, Role.COPER),
   validate({ body: createDonationSchema }),
   donationController.create
 );
@@ -25,6 +25,9 @@ router.get('/', donationController.list);
 
 // Obter detalhes de uma doação específica
 router.get('/:id', donationController.getById);
+
+// Download oficial do comprovante de doação em PDF (Aprovada)
+router.get('/:id/pdf', donationController.downloadPdf);
 
 // Validação e aprovação/rejeição de doação física (Exclusivo COPER)
 router.patch(

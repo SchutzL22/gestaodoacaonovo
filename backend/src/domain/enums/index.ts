@@ -4,6 +4,7 @@ export {
   CourseStatus,
   EnrollmentStatus,
   DocType,
+  CampaignStatus,
 } from '@prisma/client';
 
 import { UserRole, DocType } from '@prisma/client';

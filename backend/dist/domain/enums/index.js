@@ -1,12 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CertificateType = exports.Role = exports.DocType = exports.EnrollmentStatus = exports.CourseStatus = exports.DonationStatus = exports.UserRole = void 0;
+exports.CertificateType = exports.Role = exports.CampaignStatus = exports.DocType = exports.EnrollmentStatus = exports.CourseStatus = exports.DonationStatus = exports.UserRole = void 0;
 var client_1 = require("@prisma/client");
 Object.defineProperty(exports, "UserRole", { enumerable: true, get: function () { return client_1.UserRole; } });
 Object.defineProperty(exports, "DonationStatus", { enumerable: true, get: function () { return client_1.DonationStatus; } });
 Object.defineProperty(exports, "CourseStatus", { enumerable: true, get: function () { return client_1.CourseStatus; } });
 Object.defineProperty(exports, "EnrollmentStatus", { enumerable: true, get: function () { return client_1.EnrollmentStatus; } });
 Object.defineProperty(exports, "DocType", { enumerable: true, get: function () { return client_1.DocType; } });
+Object.defineProperty(exports, "CampaignStatus", { enumerable: true, get: function () { return client_1.CampaignStatus; } });
 const client_2 = require("@prisma/client");
 exports.Role = client_2.UserRole;
 exports.CertificateType = client_2.DocType;

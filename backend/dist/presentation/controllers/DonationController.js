@@ -3,12 +3,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DonationController = void 0;
 const CreateDonationUseCase_js_1 = require("../../application/use-cases/donations/CreateDonationUseCase.js");
 const ValidateDonationUseCase_js_1 = require("../../application/use-cases/donations/ValidateDonationUseCase.js");
+const DownloadCertificatePDFUseCase_js_1 = require("../../application/use-cases/certificates/DownloadCertificatePDFUseCase.js");
 const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const AppError_js_1 = require("../../domain/errors/AppError.js");
 const index_js_1 = require("../../domain/enums/index.js");
 class DonationController {
     createDonationUseCase = new CreateDonationUseCase_js_1.CreateDonationUseCase();
     validateDonationUseCase = new ValidateDonationUseCase_js_1.ValidateDonationUseCase();
+    downloadPdfUseCase = new DownloadCertificatePDFUseCase_js_1.DownloadCertificatePDFUseCase();
     create = async (req, res, next) => {
         try {
             if (!req.user)
@@ -99,10 +101,16 @@ class DonationController {
                     include: {
                         items: true,
                         user: {
-                            select: { id: true, name: true, email: true, cpf: true, role: true },
+                            select: { id: true, name: true, email: true, cpf: true, role: true, matricula: true, isActive: true },
                         },
                         validatedBy: {
                             select: { id: true, name: true, email: true },
+                        },
+                        receivedBy: {
+                            select: { id: true, name: true, email: true },
+                        },
+                        campaign: {
+                            select: { id: true, title: true, status: true },
                         },
                         certificate: {
                             select: { id: true, authHash: true, validationUrl: true, issuedAt: true },
@@ -145,10 +153,16 @@ class DonationController {
                 include: {
                     items: true,
                     user: {
-                        select: { id: true, name: true, email: true, cpf: true, role: true },
+                        select: { id: true, name: true, email: true, cpf: true, role: true, matricula: true, isActive: true },
                     },
                     validatedBy: {
                         select: { id: true, name: true, email: true },
+                    },
+                    receivedBy: {
+                        select: { id: true, name: true, email: true },
+                    },
+                    campaign: {
+                        select: { id: true, title: true, status: true },
                     },
                     certificate: {
                         select: { id: true, authHash: true, validationUrl: true, issuedAt: true },
@@ -165,6 +179,18 @@ class DonationController {
                 status: 'success',
                 data: { donation },
             });
+        }
+        catch (error) {
+            next(error);
+        }
+    };
+    downloadPdf = async (req, res, next) => {
+        try {
+            const id = req.params.id;
+            const result = await this.downloadPdfUseCase.execute(id, req.user?.userId, req.user?.role);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+            res.send(result.pdfBuffer);
         }
         catch (error) {
             next(error);

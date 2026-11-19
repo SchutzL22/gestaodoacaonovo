@@ -7,4 +7,20 @@ export declare class MailService {
         html: string;
     }): Promise<void>;
     static sendWaitlistPromotionNotification(userEmail: string, userName: string, courseTitle: string): Promise<void>;
+    static sendDonationStatusNotification(options: {
+        userEmail: string;
+        userName: string;
+        status: 'APPROVED' | 'REJECTED';
+        hoursEarned?: number;
+        rejectionReason?: string;
+        authHash?: string;
+        isStudent?: boolean;
+    }): Promise<void>;
+    static sendCourseCertificateNotification(options: {
+        userEmail: string;
+        userName: string;
+        courseTitle: string;
+        workloadHours: number;
+        authHash: string;
+    }): Promise<void>;
 }

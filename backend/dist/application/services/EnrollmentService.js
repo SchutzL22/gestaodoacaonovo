@@ -5,6 +5,7 @@ const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const AppError_js_1 = require("../../domain/errors/AppError.js");
 const index_js_1 = require("../../domain/enums/index.js");
 const MailService_js_1 = require("../../infrastructure/mail/MailService.js");
+const NotificationService_js_1 = require("./NotificationService.js");
 class EnrollmentService {
     async enroll(studentId, classroomId) {
         return prisma_js_1.prisma.$transaction(async (tx) => {
@@ -17,6 +18,17 @@ class EnrollmentService {
             }
             if (classroom.status !== index_js_1.CourseStatus.OPEN) {
                 throw AppError_js_1.AppError.badRequest('Inscrições fechadas para esta turma no momento.');
+            }
+            const now = new Date();
+            if (classroom.enrollmentStartDate && now < new Date(classroom.enrollmentStartDate)) {
+                throw AppError_js_1.AppError.badRequest(`As inscrições para esta turma ainda não foram abertas. Abertura em: ${new Date(classroom.enrollmentStartDate).toLocaleString('pt-BR')}`);
+            }
+            if (classroom.enrollmentEndDate && now > new Date(classroom.enrollmentEndDate)) {
+                throw AppError_js_1.AppError.badRequest(`O período de inscrições para esta turma foi encerrado em: ${new Date(classroom.enrollmentEndDate).toLocaleString('pt-BR')}`);
+            }
+            const student = await tx.user.findUnique({ where: { id: studentId } });
+            if (!student || !student.isActive) {
+                throw AppError_js_1.AppError.badRequest('Aluno com matrícula inativa não tem permissão para se inscrever em turmas.');
             }
             const existing = await tx.enrollment.findUnique({
                 where: {
@@ -135,6 +147,12 @@ class EnrollmentService {
             if (enrollment.status === index_js_1.EnrollmentStatus.CANCELLED) {
                 throw AppError_js_1.AppError.badRequest('Esta inscrição já está cancelada.');
             }
+            const now = new Date();
+            if (!isCoper &&
+                enrollment.classroom.cancellationDeadline &&
+                now > new Date(enrollment.classroom.cancellationDeadline)) {
+                throw AppError_js_1.AppError.badRequest(`O prazo limite para desistência desta turma expirou em: ${new Date(enrollment.classroom.cancellationDeadline).toLocaleString('pt-BR')}`);
+            }
             const wasActive = enrollment.status === index_js_1.EnrollmentStatus.ACTIVE;
             const wasWaitlist = enrollment.status === index_js_1.EnrollmentStatus.WAITLIST;
             const oldPosition = enrollment.waitlistPosition;
@@ -208,6 +226,18 @@ class EnrollmentService {
             };
         });
         if (result.promotedStudent) {
+            try {
+                NotificationService_js_1.NotificationService.createNotification({
+                    userId: result.promotedStudent.id,
+                    title: 'Vaga Liberada no Curso!',
+                    message: `Parabéns! Uma vaga foi liberada e você foi promovido para vaga ATIVA no curso: ${result.promotedStudent.courseTitle}.`,
+                    type: 'WAITLIST_PROMOTED',
+                    link: '/aluno/cursos',
+                });
+            }
+            catch (e) {
+                console.error('[EnrollmentService] Erro ao criar in-app notification:', e);
+            }
             MailService_js_1.MailService.sendWaitlistPromotionNotification(result.promotedStudent.email, result.promotedStudent.name, result.promotedStudent.courseTitle).catch((err) => {
                 console.error('[EnrollmentService] Falha ao enviar e-mail de notificação da fila:', err);
             });

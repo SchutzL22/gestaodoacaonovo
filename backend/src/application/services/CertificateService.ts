@@ -4,13 +4,15 @@ import { AppError } from '../../domain/errors/AppError.js';
 import { DocType } from '../../domain/enums/index.js';
 import { PDFGeneratorService } from '../../infrastructure/pdf/PDFGeneratorService.js';
 
+import { ValidateCertificateUseCase } from '../use-cases/certificates/ValidateCertificateUseCase.js';
+
 export interface PublicValidationResponse {
   isValid: boolean;
-  status: 'VÁLIDO' | 'AUTÊNTICO';
+  status: string;
   authHash: string;
   beneficiaryName: string;
   beneficiaryCpfMasked: string;
-  documentType: DocType;
+  documentType: any;
   documentTypeName: string;
   title: string;
   description?: string;
@@ -20,83 +22,13 @@ export interface PublicValidationResponse {
 }
 
 export class CertificateService {
+  private validateUseCase = new ValidateCertificateUseCase();
+
   /**
    * Validação pública e sem autenticação por hash (estilo Unisul).
    */
-  async validatePublicHash(hash: string): Promise<PublicValidationResponse> {
-    if (!hash || typeof hash !== 'string' || hash.trim().length === 0) {
-      throw AppError.badRequest('O código verificador (hash) é obrigatório.');
-    }
-
-    const cleanHash = hash.trim();
-    const aliasMap: Record<string, string> = {
-      'tok-luc-001': 'f7a2c091-8d2b-4fa3-9f12-9c1048b61a32',
-      'tok-edu-001': 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
-    };
-    const targetHash = aliasMap[cleanHash.toLowerCase()] || cleanHash;
-
-    const cert = await prisma.certificate.findFirst({
-      where: {
-        OR: [{ authHash: targetHash }, { id: targetHash }],
-      },
-      include: {
-        user: {
-          select: {
-            name: true,
-            cpf: true,
-            role: true,
-          },
-        },
-        donation: {
-          include: {
-            items: true,
-          },
-        },
-        enrollment: {
-          include: {
-            classroom: {
-              include: {
-                course: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!cert) {
-      throw AppError.notFound('Documento ou certificado não encontrado. Código hash inválido ou inexistente.');
-    }
-
-    // Mascara o CPF em respeito à LGPD (ex: ***.456.789-**)
-    const cpf = cert.user.cpf;
-    const maskedCpf =
-      cpf.length === 11
-        ? `***.${cpf.substring(3, 6)}.${cpf.substring(6, 9)}-**`
-        : '***.***.***-**';
-
-    const isCourse = cert.type === DocType.COURSE_CERTIFICATE;
-
-    return {
-      isValid: true,
-      status: 'AUTÊNTICO',
-      authHash: cert.authHash,
-      beneficiaryName: cert.user.name,
-      beneficiaryCpfMasked: maskedCpf,
-      documentType: cert.type,
-      documentTypeName: isCourse
-        ? 'Certificado Oficial de Conclusão de Curso Extracurricular'
-        : 'Declaração Institucional de Doação e Ação Social',
-      title: cert.title,
-      description: cert.description || undefined,
-      hoursCompleted: cert.hours || 0,
-      issuedAt: cert.issuedAt,
-      details: {
-        courseTitle: cert.enrollment?.classroom.course.title,
-        classroomCode: cert.enrollment?.classroom.code,
-        donationItemsCount: cert.donation?.items.length,
-      },
-    };
+  async validatePublicHash(hash: string): Promise<any> {
+    return this.validateUseCase.execute(hash);
   }
 
   /**

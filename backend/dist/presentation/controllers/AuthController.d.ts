@@ -8,4 +8,7 @@ export declare class AuthController {
     login: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     refreshToken: (req: Request, res: Response, next: NextFunction) => Promise<void>;
     me: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+    forgotPassword: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    resetPassword: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+    logout: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 }

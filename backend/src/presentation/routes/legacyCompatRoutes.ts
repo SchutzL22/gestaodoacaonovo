@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { DonationStatus, UserRole } from '../../domain/enums/index.js';
+import { NotificationService } from '../../application/services/NotificationService.js';
 import multer from 'multer';
 
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
@@ -84,12 +85,73 @@ let nextCampanhaId = 4;
 let nextItemId = 6;
 
 // ── 1. CAMPANHAS ─────────────────────────────────────────────
-router.get('/campanhas', (req: Request, res: Response) => {
+router.get('/campanhas', async (req: Request, res: Response) => {
+  try {
+    const dbCampaigns = await prisma.campaign.findMany({
+      include: { priorityItems: true },
+      orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
+    });
+    if (dbCampaigns && dbCampaigns.length > 0) {
+      return res.json(
+        dbCampaigns.map((c) => ({
+          id: c.id,
+          titulo: c.title,
+          descricao: c.description,
+          status:
+            c.status === 'ACTIVE'
+              ? c.isUrgent
+                ? 'Urgente'
+                : 'Ativa'
+              : c.status === 'FUTURE'
+              ? 'Futura'
+              : 'Encerrada',
+          dataLimite: c.endDate ? c.endDate.toISOString().split('T')[0] : null,
+          limiteHoras: c.hoursLimit,
+          regrasConversao: c.conversionRules,
+          urgente: c.isUrgent,
+          itensPrioritarios: c.priorityItems.map((p) => ({
+            id: p.id,
+            nome: p.name,
+            meta: p.goal,
+            urgencia: p.urgencyLevel,
+            campanhaId: p.campaignId,
+          })),
+        }))
+      );
+    }
+  } catch {}
   res.json(campanhasState);
 });
 
-router.get('/campanhas/:id', (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+router.get('/campanhas/:id', async (req: Request, res: Response) => {
+  const paramId = String(req.params.id);
+  try {
+    const campaign = await (prisma.campaign.findUnique as any)({
+      where: { id: paramId },
+      include: { priorityItems: true },
+    });
+    if (campaign) {
+      return res.json({
+        id: campaign.id,
+        titulo: campaign.title,
+        descricao: campaign.description,
+        status: campaign.status,
+        dataLimite: campaign.endDate ? campaign.endDate.toISOString().split('T')[0] : null,
+        limiteHoras: campaign.hoursLimit,
+        regrasConversao: campaign.conversionRules,
+        urgente: campaign.isUrgent,
+        itensPrioritarios: (campaign.priorityItems || []).map((p: any) => ({
+          id: p.id,
+          nome: p.name,
+          meta: p.goal,
+          urgencia: p.urgencyLevel,
+          campanhaId: p.campaignId,
+        })),
+      });
+    }
+  } catch {}
+
+  const id = Number(paramId);
   const found = campanhasState.find((c) => c.id === id);
   if (!found) return res.status(404).json({ erro: 'Campanha não encontrada.' });
   res.json(found);
@@ -147,7 +209,24 @@ router.delete('/campanhas/:id', (req: Request, res: Response) => {
 });
 
 // ── 2. ITENS PRIORITÁRIOS ────────────────────────────────────
-router.get('/itens-prioritarios', (req: Request, res: Response) => {
+router.get('/itens-prioritarios', async (req: Request, res: Response) => {
+  try {
+    const dbItems = await prisma.priorityItem.findMany({
+      include: { campaign: true },
+      orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
+    });
+    if (dbItems && dbItems.length > 0) {
+      return res.json(
+        dbItems.map((i) => ({
+          id: i.id,
+          nome: i.name,
+          meta: i.goal,
+          urgencia: i.urgencyLevel,
+          campanhaId: i.campaignId,
+        }))
+      );
+    }
+  } catch {}
   res.json(itensPrioritariosState);
 });
 
@@ -189,13 +268,17 @@ router.delete('/itens-prioritarios/:id', (req: Request, res: Response) => {
 // ── 3. RELATÓRIOS ────────────────────────────────────────────
 router.get('/relatorios', async (req: Request, res: Response, next) => {
   try {
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    const baseWhere = { createdAt: { gte: twoYearsAgo } };
+
     const [totalDoacoes, totalAprovadas, totalReprovadas, totalPendentes, horasAgg] = await Promise.all([
-      prisma.donation.count(),
-      prisma.donation.count({ where: { status: 'APPROVED' } }),
-      prisma.donation.count({ where: { status: 'REJECTED' } }),
-      prisma.donation.count({ where: { status: 'PENDING' } }),
+      prisma.donation.count({ where: baseWhere }),
+      prisma.donation.count({ where: { ...baseWhere, status: 'APPROVED' } }),
+      prisma.donation.count({ where: { ...baseWhere, status: 'REJECTED' } }),
+      prisma.donation.count({ where: { ...baseWhere, status: 'PENDING' } }),
       prisma.donation.aggregate({
-        where: { status: 'APPROVED' },
+        where: { ...baseWhere, status: 'APPROVED' },
         _sum: { hoursEarned: true },
       }),
     ]);
@@ -221,25 +304,23 @@ router.get('/relatorios', async (req: Request, res: Response, next) => {
 
 // ── 4. NOTIFICAÇÕES ──────────────────────────────────────────
 router.get('/notificacoes/aluno/:alunoId', (req: Request, res: Response) => {
-  res.json([
-    {
-      id: 1,
-      titulo: 'Doação Aprovada com Sucesso!',
-      mensagem: 'Sua doação foi validada pela equipe COPER e as horas já constam no seu histórico.',
-      dataEnvio: new Date().toISOString(),
-      lida: false,
-    },
-    {
-      id: 2,
-      titulo: 'Inscrição Ativa em Curso',
-      mensagem: 'Você está matriculado na turma de Libras 2026.1. Acompanhe sua frequência.',
-      dataEnvio: new Date(Date.now() - 86400000).toISOString(),
-      lida: true,
-    },
-  ]);
+  const notifs = NotificationService.getUserNotifications(String(req.params.alunoId));
+  res.json(notifs);
+});
+
+router.get('/notificacoes', (req: Request, res: Response) => {
+  const userId = (req as any).user?.userId || (req.query.userId as string) || 'default';
+  const notifs = NotificationService.getUserNotifications(String(userId));
+  res.json(notifs);
+});
+
+router.patch('/notificacoes/:id/read', (req: Request, res: Response) => {
+  const success = NotificationService.markAsRead(String(req.params.id));
+  res.json({ success });
 });
 
 router.delete('/notificacoes/:id', (req: Request, res: Response) => {
+  NotificationService.deleteNotification(String(req.params.id));
   res.status(204).send();
 });
 

@@ -1,11 +1,10 @@
-import { DocType } from '../../domain/enums/index.js';
 export interface PublicValidationResponse {
     isValid: boolean;
-    status: 'VÁLIDO' | 'AUTÊNTICO';
+    status: string;
     authHash: string;
     beneficiaryName: string;
     beneficiaryCpfMasked: string;
-    documentType: DocType;
+    documentType: any;
     documentTypeName: string;
     title: string;
     description?: string;
@@ -14,7 +13,8 @@ export interface PublicValidationResponse {
     details?: Record<string, unknown>;
 }
 export declare class CertificateService {
-    validatePublicHash(hash: string): Promise<PublicValidationResponse>;
+    private validateUseCase;
+    validatePublicHash(hash: string): Promise<any>;
     issueCourseCertificate(enrollmentId: string): Promise<string>;
     getCertificatePDF(authHash: string): Promise<{
         buffer: Buffer;

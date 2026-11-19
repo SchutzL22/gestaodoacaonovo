@@ -6,73 +6,11 @@ const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const AppError_js_1 = require("../../domain/errors/AppError.js");
 const index_js_1 = require("../../domain/enums/index.js");
 const PDFGeneratorService_js_1 = require("../../infrastructure/pdf/PDFGeneratorService.js");
+const ValidateCertificateUseCase_js_1 = require("../use-cases/certificates/ValidateCertificateUseCase.js");
 class CertificateService {
+    validateUseCase = new ValidateCertificateUseCase_js_1.ValidateCertificateUseCase();
     async validatePublicHash(hash) {
-        if (!hash || typeof hash !== 'string' || hash.trim().length === 0) {
-            throw AppError_js_1.AppError.badRequest('O código verificador (hash) é obrigatório.');
-        }
-        const cleanHash = hash.trim();
-        const aliasMap = {
-            'tok-luc-001': 'f7a2c091-8d2b-4fa3-9f12-9c1048b61a32',
-            'tok-edu-001': 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
-        };
-        const targetHash = aliasMap[cleanHash.toLowerCase()] || cleanHash;
-        const cert = await prisma_js_1.prisma.certificate.findFirst({
-            where: {
-                OR: [{ authHash: targetHash }, { id: targetHash }],
-            },
-            include: {
-                user: {
-                    select: {
-                        name: true,
-                        cpf: true,
-                        role: true,
-                    },
-                },
-                donation: {
-                    include: {
-                        items: true,
-                    },
-                },
-                enrollment: {
-                    include: {
-                        classroom: {
-                            include: {
-                                course: true,
-                            },
-                        },
-                    },
-                },
-            },
-        });
-        if (!cert) {
-            throw AppError_js_1.AppError.notFound('Documento ou certificado não encontrado. Código hash inválido ou inexistente.');
-        }
-        const cpf = cert.user.cpf;
-        const maskedCpf = cpf.length === 11
-            ? `***.${cpf.substring(3, 6)}.${cpf.substring(6, 9)}-**`
-            : '***.***.***-**';
-        const isCourse = cert.type === index_js_1.DocType.COURSE_CERTIFICATE;
-        return {
-            isValid: true,
-            status: 'AUTÊNTICO',
-            authHash: cert.authHash,
-            beneficiaryName: cert.user.name,
-            beneficiaryCpfMasked: maskedCpf,
-            documentType: cert.type,
-            documentTypeName: isCourse
-                ? 'Certificado Oficial de Conclusão de Curso Extracurricular'
-                : 'Declaração Institucional de Doação e Ação Social',
-            title: cert.title,
-            description: cert.description || undefined,
-            hoursCompleted: cert.hours || 0,
-            issuedAt: cert.issuedAt,
-            details: {
-                courseTitle: cert.enrollment?.classroom.course.title,
-                classroomCode: cert.enrollment?.classroom.code,
-                donationItemsCount: cert.donation?.items.length,
-            },
-        };
+        return this.validateUseCase.execute(hash);
     }
     async issueCourseCertificate(enrollmentId) {
         const enrollment = await prisma_js_1.prisma.enrollment.findUnique({

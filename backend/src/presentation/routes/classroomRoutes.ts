@@ -3,13 +3,20 @@ import { ClassroomController } from '../controllers/ClassroomController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import { requireRoles } from '../middlewares/rbacMiddleware.js';
 import { validate } from '../middlewares/validationMiddleware.js';
-import { createClassroomSchema } from '../../application/dtos/course.dto.js';
+import { createClassroomSchema, launchClassroomGradesSchema } from '../../application/dtos/course.dto.js';
 import { Role } from '../../domain/enums/index.js';
 
 const router = Router();
 const classroomController = new ClassroomController();
 
 router.use(authMiddleware);
+
+// Listar turmas ministradas pelo professor logado (Diário de Classe Digital)
+router.get(
+  '/teaching/my',
+  requireRoles(Role.PROFESSOR, Role.COPER),
+  classroomController.getMyTeachingClassrooms
+);
 
 // Abrir nova turma (COPER)
 router.post(
@@ -24,6 +31,21 @@ router.get('/', classroomController.list);
 
 // Obter detalhes de uma turma
 router.get('/:id', classroomController.getById);
+
+// Visualizar fila de espera em tempo real (COPER)
+router.get(
+  '/:id/waitlist',
+  requireRoles(Role.COPER),
+  classroomController.getWaitlist
+);
+
+// Lançamento de notas A1, A2 e A3 (PROFESSOR ou COPER)
+router.patch(
+  '/:id/grades',
+  requireRoles(Role.PROFESSOR, Role.COPER),
+  validate({ body: launchClassroomGradesSchema }),
+  classroomController.launchGrades
+);
 
 // Inscrever-se na turma (ALUNO) -> algoritmo FIFO com fila de espera automática
 router.post(

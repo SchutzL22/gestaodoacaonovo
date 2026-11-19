@@ -7,6 +7,9 @@ export declare class ClassroomController {
     create: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     list: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     getById: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+    getMyTeachingClassrooms: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+    launchGrades: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+    getWaitlist: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     enroll: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     cancel: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     close: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;

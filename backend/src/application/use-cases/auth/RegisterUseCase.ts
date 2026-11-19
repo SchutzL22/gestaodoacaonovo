@@ -23,6 +23,15 @@ export class RegisterUseCase {
       throw AppError.conflict('Já existe um usuário cadastrado com este CPF.');
     }
 
+    if (data.matricula) {
+      const existingMatricula = await prisma.user.findUnique({
+        where: { matricula: data.matricula },
+      });
+      if (existingMatricula) {
+        throw AppError.conflict('Já existe um usuário cadastrado com esta matrícula.');
+      }
+    }
+
     const passwordHash = await PasswordHasher.hash(data.password);
 
     const user = await prisma.user.create({
@@ -32,6 +41,12 @@ export class RegisterUseCase {
         cpf: data.cpf,
         passwordHash,
         role: data.role as UserRole,
+        matricula: data.matricula || null,
+        address: data.address || null,
+        phone: data.phone || null,
+        isActive: true,
+        semesterHoursLimit: data.role === UserRole.ALUNO ? 40 : null,
+        totalHoursEarned: 0,
       },
       select: {
         id: true,
@@ -39,6 +54,12 @@ export class RegisterUseCase {
         email: true,
         cpf: true,
         role: true,
+        matricula: true,
+        address: true,
+        phone: true,
+        isActive: true,
+        semesterHoursLimit: true,
+        totalHoursEarned: true,
         createdAt: true,
       },
     });

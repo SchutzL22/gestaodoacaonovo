@@ -11,128 +11,273 @@ async function seed() {
     const profPassword = await PasswordHasher_js_1.PasswordHasher.hash('prof123');
     const alunoPassword = await PasswordHasher_js_1.PasswordHasher.hash('aluno123');
     const empresaPassword = await PasswordHasher_js_1.PasswordHasher.hash('empresa123');
+    const civilPassword = await PasswordHasher_js_1.PasswordHasher.hash('civil123');
     const admin = await prisma_js_1.prisma.user.upsert({
         where: { email: 'coper@coper.edu.br' },
-        update: {},
+        update: { isActive: true },
         create: {
             name: 'Coordenador COPER FMP',
             email: 'coper@coper.edu.br',
             cpf: '00011122233',
             passwordHash: adminPassword,
             role: index_js_1.UserRole.COPER,
+            phone: '(48) 3279-0000',
+            isActive: true,
         },
     });
     await prisma_js_1.prisma.user.upsert({
         where: { email: 'admin@fmpsc.edu.br' },
-        update: {},
+        update: { isActive: true },
         create: {
             name: 'Administrador COPER FMP',
             email: 'admin@fmpsc.edu.br',
             cpf: '00011122299',
             passwordHash: adminPassword,
             role: index_js_1.UserRole.COPER,
+            phone: '(48) 3279-0001',
+            isActive: true,
         },
     });
     const professorLibras = await prisma_js_1.prisma.user.upsert({
         where: { email: 'professor.libras@coper.edu.br' },
-        update: {},
+        update: { isActive: true },
         create: {
             name: 'Prof. Rafael Santos (Libras)',
             email: 'professor.libras@coper.edu.br',
             cpf: '11122233344',
             passwordHash: profPassword,
             role: index_js_1.UserRole.PROFESSOR,
+            phone: '(48) 99111-2233',
+            isActive: true,
         },
     });
     const professorTI = await prisma_js_1.prisma.user.upsert({
         where: { email: 'professor.ti@coper.edu.br' },
-        update: {},
+        update: { isActive: true },
         create: {
             name: 'Profª. Camila Mendes (Informática)',
             email: 'professor.ti@coper.edu.br',
             cpf: '11122233355',
             passwordHash: profPassword,
             role: index_js_1.UserRole.PROFESSOR,
+            phone: '(48) 99111-4455',
+            isActive: true,
         },
     });
     const aluno1 = await prisma_js_1.prisma.user.upsert({
         where: { email: 'lucas.aluno@aluno.coper.edu.br' },
-        update: {},
+        update: {
+            matricula: '20261001',
+            isActive: true,
+            semesterHoursLimit: 40,
+        },
         create: {
             name: 'Lucas Alexandre Vieira',
             email: 'lucas.aluno@aluno.coper.edu.br',
             cpf: '22233344455',
             passwordHash: alunoPassword,
             role: index_js_1.UserRole.ALUNO,
+            matricula: '20261001',
+            phone: '(48) 99222-3344',
+            isActive: true,
+            semesterHoursLimit: 40,
+            totalHoursEarned: 10,
         },
     });
     await prisma_js_1.prisma.user.upsert({
         where: { email: 'lucas@aluno.fmpsc.edu.br' },
-        update: {},
+        update: {
+            matricula: '20261099',
+            isActive: true,
+            semesterHoursLimit: 40,
+        },
         create: {
             name: 'Lucas Alexandre Vieira',
             email: 'lucas@aluno.fmpsc.edu.br',
             cpf: '22233344499',
             passwordHash: alunoPassword,
             role: index_js_1.UserRole.ALUNO,
+            matricula: '20261099',
+            phone: '(48) 99222-3399',
+            isActive: true,
+            semesterHoursLimit: 40,
+            totalHoursEarned: 10,
         },
     });
     const aluno2 = await prisma_js_1.prisma.user.upsert({
         where: { email: 'mariana.aluna@aluno.coper.edu.br' },
-        update: {},
+        update: {
+            matricula: '20261002',
+            isActive: true,
+            semesterHoursLimit: 40,
+        },
         create: {
             name: 'Mariana Silva Santos',
             email: 'mariana.aluna@aluno.coper.edu.br',
             cpf: '33344455566',
             passwordHash: alunoPassword,
             role: index_js_1.UserRole.ALUNO,
+            matricula: '20261002',
+            phone: '(48) 99333-4455',
+            isActive: true,
+            semesterHoursLimit: 40,
+            totalHoursEarned: 15,
         },
     });
     const aluno3 = await prisma_js_1.prisma.user.upsert({
         where: { email: 'gabriel.costa@aluno.coper.edu.br' },
-        update: {},
+        update: {
+            matricula: '20261003',
+            isActive: true,
+            semesterHoursLimit: 40,
+        },
         create: {
             name: 'Gabriel Costa Ribeiro',
             email: 'gabriel.costa@aluno.coper.edu.br',
             cpf: '44455566688',
             passwordHash: alunoPassword,
             role: index_js_1.UserRole.ALUNO,
+            matricula: '20261003',
+            phone: '(48) 99444-5566',
+            isActive: true,
+            semesterHoursLimit: 40,
+            totalHoursEarned: 0,
         },
     });
     const aluno4 = await prisma_js_1.prisma.user.upsert({
         where: { email: 'beatriz.lima@aluno.coper.edu.br' },
-        update: {},
+        update: {
+            matricula: '20261004',
+            isActive: true,
+            semesterHoursLimit: 40,
+        },
         create: {
             name: 'Beatriz Lima de Oliveira',
             email: 'beatriz.lima@aluno.coper.edu.br',
             cpf: '55566677799',
             passwordHash: alunoPassword,
             role: index_js_1.UserRole.ALUNO,
+            matricula: '20261004',
+            phone: '(48) 99555-6677',
+            isActive: true,
+            semesterHoursLimit: 40,
+            totalHoursEarned: 0,
         },
     });
     const aluno5 = await prisma_js_1.prisma.user.upsert({
         where: { email: 'matheus.duarte@aluno.coper.edu.br' },
-        update: {},
+        update: {
+            matricula: '20261005',
+            isActive: true,
+            semesterHoursLimit: 40,
+        },
         create: {
             name: 'Matheus Henrique Duarte',
             email: 'matheus.duarte@aluno.coper.edu.br',
             cpf: '66677788800',
             passwordHash: alunoPassword,
             role: index_js_1.UserRole.ALUNO,
+            matricula: '20261005',
+            phone: '(48) 99666-7788',
+            isActive: true,
+            semesterHoursLimit: 40,
+            totalHoursEarned: 0,
         },
     });
     const empresario = await prisma_js_1.prisma.user.upsert({
         where: { email: 'contato@techparceira.com.br' },
-        update: {},
+        update: { isActive: true },
         create: {
             name: 'Tech Inovação S/A (Parceiro Empresarial)',
             email: 'contato@techparceira.com.br',
             cpf: '77788899911',
             passwordHash: empresaPassword,
             role: index_js_1.UserRole.EMPRESARIO,
+            phone: '(48) 3344-5500',
+            address: 'Rodovia SC-401, Km 4, Saco Grande, Florianópolis - SC',
+            isActive: true,
         },
     });
-    console.log('[Seed] 1 Admin, 2 Professores, 5 Alunos e 1 Empresário criados.');
+    const civil = await prisma_js_1.prisma.user.upsert({
+        where: { email: 'comunidade.palhoca@gmail.com' },
+        update: { isActive: true },
+        create: {
+            name: 'Dona Maria de Lourdes (Comunidade)',
+            email: 'comunidade.palhoca@gmail.com',
+            cpf: '88899900022',
+            passwordHash: civilPassword,
+            role: index_js_1.UserRole.CIVIL,
+            phone: '(48) 99888-7766',
+            address: 'Rua das Flores, 120, Centro, Palhoça - SC',
+            isActive: true,
+        },
+    });
+    console.log('[Seed] 5 Perfis configurados: COPER, PROFESSOR, ALUNO, EMPRESARIO, CIVIL.');
+    const campaign1 = await prisma_js_1.prisma.campaign.upsert({
+        where: { id: 'c0a80123-0000-0000-0000-000000000101' },
+        update: {},
+        create: {
+            id: 'c0a80123-0000-0000-0000-000000000101',
+            title: 'Campanha do Agasalho FMP 2026',
+            description: 'Arrecadação de agasalhos, cobertores e roupas de inverno para a comunidade de Palhoça.',
+            status: index_js_1.CampaignStatus.ACTIVE,
+            isUrgent: true,
+            hoursLimit: 20,
+            conversionRules: '1 agasalho/cobertor = 2.5 horas complementares (máx. 20h)',
+            startDate: new Date('2026-04-01'),
+            endDate: new Date('2026-07-31'),
+            priorityItems: {
+                create: [
+                    { name: 'Casacos e Jaquetas de Inverno', goal: 100, urgencyLevel: 'ALTA', isUrgent: true },
+                    { name: 'Cobertores Térmicos', goal: 60, urgencyLevel: 'ALTA', isUrgent: true },
+                    { name: 'Meias e Luvas Infantis', goal: 80, urgencyLevel: 'MEDIA', isUrgent: false },
+                ],
+            },
+        },
+    });
+    const campaign2 = await prisma_js_1.prisma.campaign.upsert({
+        where: { id: 'c0a80123-0000-0000-0000-000000000102' },
+        update: {},
+        create: {
+            id: 'c0a80123-0000-0000-0000-000000000102',
+            title: 'Arrecadação de Alimentos e Cestas Básicas',
+            description: 'Doação de alimentos não perecíveis prioritários (arroz, feijão, macarrão, óleo e leite).',
+            status: index_js_1.CampaignStatus.ACTIVE,
+            isUrgent: false,
+            hoursLimit: 30,
+            conversionRules: '5kg de alimentos = 5 horas complementares (máx. 30h)',
+            startDate: new Date('2026-02-01'),
+            endDate: new Date('2026-11-30'),
+            priorityItems: {
+                create: [
+                    { name: 'Arroz Tipo 1 (5kg)', goal: 150, urgencyLevel: 'ALTA', isUrgent: true },
+                    { name: 'Feijão Preto (1kg)', goal: 200, urgencyLevel: 'ALTA', isUrgent: true },
+                    { name: 'Leite em Pó Integral', goal: 100, urgencyLevel: 'MEDIA', isUrgent: false },
+                ],
+            },
+        },
+    });
+    await prisma_js_1.prisma.campaign.upsert({
+        where: { id: 'c0a80123-0000-0000-0000-000000000103' },
+        update: {},
+        create: {
+            id: 'c0a80123-0000-0000-0000-000000000103',
+            title: 'Campanha de Livros e Cidadania Digital',
+            description: 'Doação de livros didáticos, literatura e materiais de informática para escolas públicas parceiras.',
+            status: index_js_1.CampaignStatus.FUTURE,
+            isUrgent: false,
+            hoursLimit: 15,
+            conversionRules: '1 livro didático = 1.5 horas complementares',
+            startDate: new Date('2026-08-01'),
+            endDate: new Date('2026-10-31'),
+            priorityItems: {
+                create: [
+                    { name: 'Livros de Ensino Fundamental/Médio', goal: 80, urgencyLevel: 'NORMAL', isUrgent: false },
+                ],
+            },
+        },
+    });
+    console.log('[Seed] Campanhas e Itens Prioritários cadastrados.');
     const cursoLibras = await prisma_js_1.prisma.course.upsert({
         where: { id: 'c0a80123-0000-0000-0000-000000000001' },
         update: {},
@@ -163,9 +308,20 @@ async function seed() {
     startDate.setDate(startDate.getDate() + 7);
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 60);
+    const enrollmentStartDate = new Date();
+    enrollmentStartDate.setDate(enrollmentStartDate.getDate() - 5);
+    const enrollmentEndDate = new Date();
+    enrollmentEndDate.setDate(enrollmentEndDate.getDate() + 5);
+    const cancellationDeadline = new Date();
+    cancellationDeadline.setDate(cancellationDeadline.getDate() + 14);
     const turmaLibras = await prisma_js_1.prisma.classroom.upsert({
         where: { id: 'c0a80123-0000-0000-0000-000000000011' },
-        update: {},
+        update: {
+            minGrade: 7.0,
+            enrollmentStartDate,
+            enrollmentEndDate,
+            cancellationDeadline,
+        },
         create: {
             id: 'c0a80123-0000-0000-0000-000000000011',
             courseId: cursoLibras.id,
@@ -173,12 +329,21 @@ async function seed() {
             maxCapacity: 2,
             startDate,
             endDate,
+            enrollmentStartDate,
+            enrollmentEndDate,
+            cancellationDeadline,
+            minGrade: 7.0,
             status: index_js_1.CourseStatus.OPEN,
         },
     });
     const turmaTI = await prisma_js_1.prisma.classroom.upsert({
         where: { id: 'c0a80123-0000-0000-0000-000000000012' },
-        update: {},
+        update: {
+            minGrade: 7.0,
+            enrollmentStartDate,
+            enrollmentEndDate,
+            cancellationDeadline,
+        },
         create: {
             id: 'c0a80123-0000-0000-0000-000000000012',
             courseId: cursoTI.id,
@@ -186,35 +351,94 @@ async function seed() {
             maxCapacity: 25,
             startDate,
             endDate,
+            enrollmentStartDate,
+            enrollmentEndDate,
+            cancellationDeadline,
+            minGrade: 7.0,
             status: index_js_1.CourseStatus.OPEN,
         },
     });
     await prisma_js_1.prisma.enrollment.upsert({
         where: { classroomId_studentId: { classroomId: turmaLibras.id, studentId: aluno1.id } },
-        update: {},
-        create: { classroomId: turmaLibras.id, studentId: aluno1.id, status: index_js_1.EnrollmentStatus.ACTIVE },
+        update: {
+            gradeA1: 8.5,
+            gradeA2: 9.0,
+            gradeA3: 8.0,
+            finalGrade: 8.5,
+            attendancePercentage: 92.0,
+        },
+        create: {
+            classroomId: turmaLibras.id,
+            studentId: aluno1.id,
+            status: index_js_1.EnrollmentStatus.ACTIVE,
+            gradeA1: 8.5,
+            gradeA2: 9.0,
+            gradeA3: 8.0,
+            finalGrade: 8.5,
+            attendancePercentage: 92.0,
+        },
     });
     await prisma_js_1.prisma.enrollment.upsert({
         where: { classroomId_studentId: { classroomId: turmaLibras.id, studentId: aluno2.id } },
-        update: {},
-        create: { classroomId: turmaLibras.id, studentId: aluno2.id, status: index_js_1.EnrollmentStatus.ACTIVE },
+        update: {
+            gradeA1: 7.0,
+            gradeA2: 7.5,
+            gradeA3: 8.0,
+            finalGrade: 7.5,
+            attendancePercentage: 85.0,
+        },
+        create: {
+            classroomId: turmaLibras.id,
+            studentId: aluno2.id,
+            status: index_js_1.EnrollmentStatus.ACTIVE,
+            gradeA1: 7.0,
+            gradeA2: 7.5,
+            gradeA3: 8.0,
+            finalGrade: 7.5,
+            attendancePercentage: 85.0,
+        },
     });
     await prisma_js_1.prisma.enrollment.upsert({
         where: { classroomId_studentId: { classroomId: turmaLibras.id, studentId: aluno3.id } },
         update: {},
-        create: { classroomId: turmaLibras.id, studentId: aluno3.id, status: index_js_1.EnrollmentStatus.WAITLIST, waitlistPosition: 1 },
+        create: {
+            classroomId: turmaLibras.id,
+            studentId: aluno3.id,
+            status: index_js_1.EnrollmentStatus.WAITLIST,
+            waitlistPosition: 1,
+        },
     });
     await prisma_js_1.prisma.enrollment.upsert({
         where: { classroomId_studentId: { classroomId: turmaLibras.id, studentId: aluno4.id } },
         update: {},
-        create: { classroomId: turmaLibras.id, studentId: aluno4.id, status: index_js_1.EnrollmentStatus.WAITLIST, waitlistPosition: 2 },
+        create: {
+            classroomId: turmaLibras.id,
+            studentId: aluno4.id,
+            status: index_js_1.EnrollmentStatus.WAITLIST,
+            waitlistPosition: 2,
+        },
     });
     await prisma_js_1.prisma.enrollment.upsert({
         where: { classroomId_studentId: { classroomId: turmaTI.id, studentId: aluno5.id } },
-        update: {},
-        create: { classroomId: turmaTI.id, studentId: aluno5.id, status: index_js_1.EnrollmentStatus.ACTIVE },
+        update: {
+            gradeA1: 9.0,
+            gradeA2: 9.5,
+            gradeA3: 9.0,
+            finalGrade: 9.2,
+            attendancePercentage: 100.0,
+        },
+        create: {
+            classroomId: turmaTI.id,
+            studentId: aluno5.id,
+            status: index_js_1.EnrollmentStatus.ACTIVE,
+            gradeA1: 9.0,
+            gradeA2: 9.5,
+            gradeA3: 9.0,
+            finalGrade: 9.2,
+            attendancePercentage: 100.0,
+        },
     });
-    console.log('[Seed] Turmas e Fila de Espera FIFO configuradas com sucesso.');
+    console.log('[Seed] Turmas e Fila FIFO configuradas.');
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const d1Hash = 'f7a2c091-8d2b-4fa3-9f12-9c1048b61a32';
     const donation1 = await prisma_js_1.prisma.donation.upsert({
@@ -224,8 +448,11 @@ async function seed() {
             userId: aluno1.id,
             status: index_js_1.DonationStatus.APPROVED,
             validatedByUserId: admin.id,
+            receivedById: admin.id,
+            campaignId: campaign2.id,
             hoursEarned: 10,
             authHash: d1Hash,
+            observation: 'Itens conferidos no balcão COPER em perfeito estado.',
             items: {
                 create: [
                     { description: 'Arroz Tipo 1 (5kg)', category: 'ALIMENTOS', quantity: 2, unit: 'pacotes' },
@@ -256,8 +483,11 @@ async function seed() {
             userId: aluno2.id,
             status: index_js_1.DonationStatus.APPROVED,
             validatedByUserId: admin.id,
+            receivedById: admin.id,
+            campaignId: campaign1.id,
             hoursEarned: 15,
             authHash: d2Hash,
+            observation: 'Roupas higienizadas e separadas para triagem.',
             items: {
                 create: [
                     { description: 'Agasalhos de Inverno e Cobertores', category: 'ROUPAS', quantity: 6, unit: 'peças' },
@@ -287,8 +517,10 @@ async function seed() {
             userId: empresario.id,
             status: index_js_1.DonationStatus.APPROVED,
             validatedByUserId: admin.id,
+            receivedById: admin.id,
             hoursEarned: 0,
             authHash: d3Hash,
+            observation: 'Doação de responsabilidade social corporativa entregue na sede da FMP.',
             items: {
                 create: [
                     { description: 'Kits de Higiene e Limpeza', category: 'HIGIENE', quantity: 50, unit: 'kits' },
@@ -310,15 +542,38 @@ async function seed() {
             metadata: { items: '50x Kits Higiene', enterprise: empresario.name },
         },
     });
-    const d4Hash = (0, uuid_1.v4)();
+    const d4Hash = 'd4f6b8c0-2e3a-49b1-87c5-67c012b345f6';
     await prisma_js_1.prisma.donation.upsert({
         where: { authHash: d4Hash },
         update: {},
         create: {
-            userId: aluno3.id,
-            status: index_js_1.DonationStatus.PENDING,
+            userId: civil.id,
+            status: index_js_1.DonationStatus.APPROVED,
+            validatedByUserId: admin.id,
+            receivedById: admin.id,
             hoursEarned: 0,
             authHash: d4Hash,
+            donorName: civil.name,
+            donorCpf: civil.cpf,
+            observation: 'Doação de moradora da comunidade de Palhoça.',
+            items: {
+                create: [
+                    { description: 'Pacotes de Fraldas Geriátricas', category: 'HIGIENE', quantity: 10, unit: 'pacotes' },
+                ],
+            },
+        },
+    });
+    const d5Hash = (0, uuid_1.v4)();
+    await prisma_js_1.prisma.donation.upsert({
+        where: { authHash: d5Hash },
+        update: {},
+        create: {
+            userId: aluno3.id,
+            status: index_js_1.DonationStatus.PENDING,
+            receivedById: admin.id,
+            hoursEarned: 0,
+            authHash: d5Hash,
+            observation: 'Aguardando conferência física dos livros na recepção.',
             items: {
                 create: [
                     { description: 'Livros Didáticos e Literatura', category: 'LIVROS', quantity: 12, unit: 'exemplares' },
@@ -355,7 +610,7 @@ async function seed() {
         },
     });
     console.log('[Seed] Certificados tok-luc-001 e tok-edu-001 configurados.');
-    console.log('[Seed] 3 Doações Aprovadas (com Certificados) e 1 Doação Pendente criadas.');
+    console.log('[Seed] 4 Doações Aprovadas (com Certificados) e 1 Doação Pendente criadas.');
     console.log('[Seed] Povoamento concluído com sucesso!');
 }
 if (process.argv[1]?.includes('seed')) {

@@ -2,6 +2,7 @@ import { prisma } from '../../infrastructure/database/prisma.js';
 import { AppError } from '../../domain/errors/AppError.js';
 import { CourseStatus, EnrollmentStatus } from '../../domain/enums/index.js';
 import { MailService } from '../../infrastructure/mail/MailService.js';
+import { NotificationService } from './NotificationService.js';
 
 export interface EnrollResult {
   enrollment: {
@@ -29,7 +30,7 @@ export interface CancelResult {
 
 export class EnrollmentService {
   /**
-   * Realiza a inscrição de um aluno na turma com algoritmo FIFO automático.
+   * Realiza a inscrição de um aluno na turma com validação de janela temporal e algoritmo FIFO.
    */
   async enroll(studentId: string, classroomId: string): Promise<EnrollResult> {
     return prisma.$transaction(async (tx) => {
@@ -47,7 +48,31 @@ export class EnrollmentService {
         throw AppError.badRequest('Inscrições fechadas para esta turma no momento.');
       }
 
-      // 2. Verifica inscrição prévia do aluno
+      // Validação da Janela Temporal de Inscrição (Abertura e Encerramento)
+      const now = new Date();
+      if (classroom.enrollmentStartDate && now < new Date(classroom.enrollmentStartDate)) {
+        throw AppError.badRequest(
+          `As inscrições para esta turma ainda não foram abertas. Abertura em: ${new Date(
+            classroom.enrollmentStartDate
+          ).toLocaleString('pt-BR')}`
+        );
+      }
+
+      if (classroom.enrollmentEndDate && now > new Date(classroom.enrollmentEndDate)) {
+        throw AppError.badRequest(
+          `O período de inscrições para esta turma foi encerrado em: ${new Date(
+            classroom.enrollmentEndDate
+          ).toLocaleString('pt-BR')}`
+        );
+      }
+
+      // 2. Trava de Aluno Inativo
+      const student = await tx.user.findUnique({ where: { id: studentId } });
+      if (!student || !student.isActive) {
+        throw AppError.badRequest('Aluno com matrícula inativa não tem permissão para se inscrever em turmas.');
+      }
+
+      // 3. Verifica inscrição prévia do aluno
       const existing = await tx.enrollment.findUnique({
         where: {
           classroomId_studentId: {
@@ -68,7 +93,7 @@ export class EnrollmentService {
         }
       }
 
-      // 3. Contagem de vagas ativas (Locking lógico)
+      // 4. Contagem de vagas ativas (Locking lógico)
       const totalActive = await tx.enrollment.count({
         where: {
           classroomId,
@@ -76,7 +101,7 @@ export class EnrollmentService {
         },
       });
 
-      // 4. Se houver vaga, garante vaga ACTIVE
+      // 5. Se houver vaga, garante vaga ACTIVE
       if (totalActive < classroom.maxCapacity) {
         const enrollment = await tx.enrollment.upsert({
           where: {
@@ -111,7 +136,7 @@ export class EnrollmentService {
         };
       }
 
-      // 5. Turma lotada -> FIFO: calcula última posição da fila + 1
+      // 6. Turma lotada -> FIFO: calcula última posição da fila + 1
       const maxWaitlist = await tx.enrollment.aggregate({
         where: {
           classroomId,
@@ -160,7 +185,8 @@ export class EnrollmentService {
   }
 
   /**
-   * Cancela a vaga de um aluno e executa a promoção do próximo da fila em transação.
+   * Cancela a vaga de um aluno (com validação de prazo de desistência)
+   * e executa a promoção atômica do 1º da fila de espera (FIFO).
    */
   async cancel(enrollmentId: string, requesterId: string, isCoper = false): Promise<CancelResult> {
     const result = await prisma.$transaction(async (tx) => {
@@ -185,6 +211,20 @@ export class EnrollmentService {
 
       if (enrollment.status === EnrollmentStatus.CANCELLED) {
         throw AppError.badRequest('Esta inscrição já está cancelada.');
+      }
+
+      // Validação do Prazo Limite para Desistência
+      const now = new Date();
+      if (
+        !isCoper &&
+        enrollment.classroom.cancellationDeadline &&
+        now > new Date(enrollment.classroom.cancellationDeadline)
+      ) {
+        throw AppError.badRequest(
+          `O prazo limite para desistência desta turma expirou em: ${new Date(
+            enrollment.classroom.cancellationDeadline
+          ).toLocaleString('pt-BR')}`
+        );
       }
 
       const wasActive = enrollment.status === EnrollmentStatus.ACTIVE;
@@ -271,8 +311,20 @@ export class EnrollmentService {
       };
     });
 
-    // 6. Envia e-mail de notificação de vaga liberada
+    // 6. Envia e-mail e in-app notification de vaga liberada
     if (result.promotedStudent) {
+      try {
+        NotificationService.createNotification({
+          userId: result.promotedStudent.id,
+          title: 'Vaga Liberada no Curso!',
+          message: `Parabéns! Uma vaga foi liberada e você foi promovido para vaga ATIVA no curso: ${result.promotedStudent.courseTitle}.`,
+          type: 'WAITLIST_PROMOTED',
+          link: '/aluno/cursos',
+        });
+      } catch (e) {
+        console.error('[EnrollmentService] Erro ao criar in-app notification:', e);
+      }
+
       MailService.sendWaitlistPromotionNotification(
         result.promotedStudent.email,
         result.promotedStudent.name,

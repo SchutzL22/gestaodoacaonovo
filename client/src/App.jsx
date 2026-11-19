@@ -17,18 +17,34 @@ import EditarPerfilPage from './pages/shared/EditarPerfilPage';
 import ValidateCertificatePage from './pages/ValidateCertificatePage';
 import SocialImpactDashboard from './pages/SocialImpactDashboard';
 import ChamadaPage from './pages/professor/ChamadaPage';
+import GestaoCursosPage from './pages/admin/GestaoCursosPage';
+import CursosAlunoPage from './pages/aluno/CursosAlunoPage';
+import DiarioClassePage from './pages/professor/DiarioClassePage';
 
 function PrivateRoute({ children, role }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/login" replace />;
   if (role && usuario.tipo !== role && usuario.role !== role) {
-    return <Navigate to={usuario.tipo === 'admin' || usuario.role === 'COPER' ? '/dashboard' : '/meu-painel'} replace />;
+    const defaultRoute =
+      usuario.role === 'PROFESSOR'
+        ? '/diario-classe'
+        : usuario.tipo === 'admin' || usuario.role === 'COPER'
+        ? '/dashboard'
+        : '/meu-painel';
+    return <Navigate to={defaultRoute} replace />;
   }
   return children;
 }
 
 function AppRoutes() {
   const { usuario } = useAuth();
+
+  const getHomeRoute = () => {
+    if (!usuario) return '/login';
+    if (usuario.role === 'PROFESSOR') return '/diario-classe';
+    if (usuario.tipo === 'admin' || usuario.role === 'COPER') return '/dashboard';
+    return '/meu-painel';
+  };
 
   return (
     <Routes>
@@ -45,11 +61,7 @@ function AppRoutes() {
       <Route
         path="/login"
         element={
-          usuario ? (
-            <Navigate to={usuario.tipo === 'admin' || usuario.role === 'COPER' ? '/dashboard' : '/meu-painel'} replace />
-          ) : (
-            <LoginPage />
-          )
+          usuario ? <Navigate to={getHomeRoute()} replace /> : <LoginPage />
         }
       />
 
@@ -57,6 +69,7 @@ function AppRoutes() {
       <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
         {/* Admin / COPER */}
         <Route path="/dashboard" element={<PrivateRoute><DashboardAdminPage /></PrivateRoute>} />
+        <Route path="/gestao-cursos" element={<PrivateRoute><GestaoCursosPage /></PrivateRoute>} />
         <Route path="/registrar-doacao" element={<PrivateRoute><RegistrarDoacaoPage /></PrivateRoute>} />
         <Route path="/validar-doacoes" element={<PrivateRoute><ValidarDoacoesPage /></PrivateRoute>} />
         <Route path="/campanhas" element={<PrivateRoute><CampanhasAdminPage /></PrivateRoute>} />
@@ -64,12 +77,14 @@ function AppRoutes() {
         <Route path="/relatorios" element={<PrivateRoute><RelatoriosPage /></PrivateRoute>} />
         <Route path="/painel-impacto" element={<SocialImpactDashboard embedded />} />
 
-        {/* Professor */}
-        <Route path="/chamada" element={<ChamadaPage />} />
-        <Route path="/professor/chamada" element={<ChamadaPage />} />
+        {/* Professor - Diário de Classe Digital (Chamada Online, Avaliações A1/A2/A3 e Certificação) */}
+        <Route path="/diario-classe" element={<DiarioClassePage />} />
+        <Route path="/chamada" element={<DiarioClassePage />} />
+        <Route path="/professor/chamada" element={<DiarioClassePage />} />
 
-        {/* Aluno */}
+        {/* Aluno - Portal Acadêmico & Catálogo de Vagas FIFO */}
         <Route path="/meu-painel" element={<DashboardAlunoPage />} />
+        <Route path="/meus-cursos" element={<CursosAlunoPage />} />
         <Route path="/campanhas-ativas" element={<CampanhasAlunoPage />} />
         <Route path="/historico" element={<HistoricoAlunoPage />} />
 

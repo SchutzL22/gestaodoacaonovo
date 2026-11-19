@@ -10,14 +10,19 @@ export declare class CloseClassroomUseCase {
             approvedStudents: {
                 studentId: string;
                 name: string;
+                email: string;
                 attendancePct: number;
+                finalGrade: number | null;
                 certificateId: string;
                 authHash: string;
             }[];
             failedStudents: {
                 studentId: string;
                 name: string;
+                email: string;
                 attendancePct: number;
+                finalGrade: number | null;
+                reason: string;
             }[];
         };
     }>;

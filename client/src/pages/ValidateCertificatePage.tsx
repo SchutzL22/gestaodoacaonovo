@@ -33,14 +33,28 @@ interface CertificateData {
   beneficiaryCpfMasked: string;
   documentType: string;
   documentTypeName: string;
+  isStudent?: boolean;
   title: string;
   description?: string;
   hoursCompleted: number;
   issuedAt: string;
   details?: {
+    isStudent?: boolean;
+    matricula?: string;
     courseTitle?: string;
     classroomCode?: string;
+    instructorName?: string;
+    campaignTitle?: string;
+    validatedByName?: string;
+    receivedByName?: string;
     donationItemsCount?: number;
+    donationSummary?: string[];
+    items?: Array<{
+      description: string;
+      category?: string;
+      quantity: number;
+      unit?: string;
+    }>;
   };
 }
 
@@ -313,55 +327,107 @@ export default function ValidateCertificatePage() {
                 )}
               </div>
 
-              {/* Horas */}
-              <div className="validate-field">
-                <div className="validate-field-label">
-                  <Clock size={13} />
-                  Horas Complementares Computadas
+              {/* Horas Complementares (Apenas para Alunos ou Cursos Extracurriculares) */}
+              {(certificate.isStudent || certificate.documentType === 'COURSE_CERTIFICATE' || certificate.hoursCompleted > 0) ? (
+                <div className="validate-field">
+                  <div className="validate-field-label">
+                    <Clock size={13} />
+                    Horas Complementares Homologadas
+                  </div>
+                  <p className="validate-hours-big">
+                    {certificate.hoursCompleted}
+                    <span className="validate-hours-unit"> horas computadas</span>
+                  </p>
+                  {certificate.details?.matricula && (
+                    <p className="validate-field-sub">Matrícula: {certificate.details.matricula}</p>
+                  )}
                 </div>
-                <p className="validate-hours-big">
-                  {certificate.hoursCompleted}
-                  <span className="validate-hours-unit"> horas registradas</span>
-                </p>
-              </div>
+              ) : (
+                <div className="validate-field">
+                  <div className="validate-field-label">
+                    <Award size={13} />
+                    Modalidade do Documento
+                  </div>
+                  <p className="validate-field-value accent">Ação Social Solidária</p>
+                  <p className="validate-field-sub">Doador da Comunidade / Corpo Docente</p>
+                </div>
+              )}
 
-              {/* Data de emissão */}
+              {/* Data de homologação / emissão */}
               <div className="validate-field">
                 <div className="validate-field-label">
                   <Calendar size={13} />
-                  Data e Hora da Emissão
+                  Data da Homologação / Emissão
                 </div>
                 <p className="validate-field-value">{formatDate(certificate.issuedAt)}</p>
                 <p className="validate-field-sub" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Sparkles size={11} style={{ color: '#0A3A60' }} />
-                  Assinatura digital institucional registrada
+                  Chancela digital oficial FMP
                 </p>
               </div>
 
-              {/* Detalhes extras se houver */}
+              {/* Responsável pela Validação se houver */}
+              {certificate.details?.validatedByName && (
+                <div className="validate-field">
+                  <div className="validate-field-label">
+                    <ShieldCheck size={13} />
+                    Homologado por
+                  </div>
+                  <p className="validate-field-value">{certificate.details.validatedByName}</p>
+                  {certificate.details.receivedByName && (
+                    <p className="validate-field-sub">Balcão: {certificate.details.receivedByName}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Detalhes extras se houver (Curso) */}
               {certificate.details?.courseTitle && (
                 <div className="validate-field">
                   <div className="validate-field-label">
                     <FileText size={13} />
-                    Curso / Projeto Associado
+                    Curso de Extensão Universitária
                   </div>
                   <p className="validate-field-value">{certificate.details.courseTitle}</p>
                   {certificate.details.classroomCode && (
                     <p className="validate-field-sub">Turma: {certificate.details.classroomCode}</p>
                   )}
+                  {certificate.details.instructorName && (
+                    <p className="validate-field-sub">Professor(a): {certificate.details.instructorName}</p>
+                  )}
                 </div>
               )}
 
+              {/* Detalhes de itens doados */}
               {(certificate.details?.donationItemsCount ?? 0) > 0 && (
-                <div className="validate-field">
+                <div className="validate-field" style={{ gridColumn: '1 / -1' }}>
                   <div className="validate-field-label">
                     <Award size={13} />
-                    Itens Doados Vinculados
+                    Relação de Itens Homologados ({certificate.details?.donationItemsCount} registros)
                   </div>
-                  <p className="validate-hours-big">
-                    {certificate.details!.donationItemsCount}
-                    <span className="validate-hours-unit"> itens</span>
-                  </p>
+                  {certificate.details?.items && certificate.details.items.length > 0 ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                      {certificate.details.items.map((it, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            background: 'rgba(255,255,255,0.06)',
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.82rem',
+                            color: '#e2e8f0',
+                          }}
+                        >
+                          <strong>{it.quantity} {it.unit || 'un.'}</strong> — {it.description} <span style={{ opacity: 0.7 }}>({it.category || 'Geral'})</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="validate-hours-big">
+                      {certificate.details!.donationItemsCount}
+                      <span className="validate-hours-unit"> itens conferidos no balcão</span>
+                    </p>
+                  )}
                 </div>
               )}
             </div>

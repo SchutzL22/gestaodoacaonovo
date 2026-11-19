@@ -14,6 +14,7 @@ import './AppLayout.css';
 
 const ADMIN_MENU = [
   { to: '/dashboard',          icon: faChartPie,         label: 'Dashboard'         },
+  { to: '/gestao-cursos',      icon: faUserGraduate,     label: 'Gestão de Cursos'  },
   { to: '/registrar-doacao',   icon: faPlusCircle,       label: 'Registrar Doação'  },
   { to: '/validar-doacoes',    icon: faClipboardCheck,   label: 'Validar Doações'   },
   { to: '/campanhas',          icon: faBullhorn,         label: 'Campanhas'         },
@@ -22,15 +23,28 @@ const ADMIN_MENU = [
   { to: '/editar-perfil',      icon: faUserGear,         label: 'Editar Perfil'     },
 ];
 
+const PROFESSOR_MENU = [
+  { to: '/diario-classe',      icon: faClipboardCheck,   label: 'Diário de Classe'  },
+  { to: '/registrar-doacao',   icon: faPlusCircle,       label: 'Doar para Campanha'},
+  { to: '/campanhas-ativas',   icon: faBullhorn,         label: 'Campanhas'         },
+  { to: '/editar-perfil',      icon: faUserGear,         label: 'Editar Perfil'     },
+];
+
 const ALUNO_MENU = [
-  { to: '/meu-painel',     icon: faUserGraduate,     label: 'Meu Painel'      },
-  { to: '/campanhas-ativas', icon: faBullhorn,        label: 'Campanhas Ativas'},
-  { to: '/historico',      icon: faClockRotateLeft,  label: 'Meu Histórico'   },
-  { to: '/editar-perfil',  icon: faUserGear,         label: 'Editar Perfil'   },
+  { to: '/meu-painel',         icon: faUserGraduate,     label: 'Meu Painel'        },
+  { to: '/meus-cursos',        icon: faClipboardCheck,   label: 'Meus Cursos & Vagas'},
+  { to: '/campanhas-ativas',   icon: faBullhorn,         label: 'Campanhas Ativas'  },
+  { to: '/historico',          icon: faClockRotateLeft,  label: 'Meu Histórico'     },
+  { to: '/editar-perfil',      icon: faUserGear,         label: 'Editar Perfil'     },
 ];
 
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard',
+  '/gestao-cursos': 'Gestão de Cursos & Turmas (COPER)',
+  '/diario-classe': 'Diário de Classe Digital (Chamada & Avaliações)',
+  '/chamada': 'Chamada Online',
+  '/professor/chamada': 'Chamada Online',
+  '/meus-cursos': 'Meus Cursos Extracurriculares',
   '/registrar-doacao': 'Registrar Doação',
   '/validar-doacoes': 'Validar Doações',
   '/campanhas': 'Campanhas',
@@ -51,11 +65,17 @@ export default function AppLayout() {
   const [notificacoes, setNotificacoes] = useState([]);
   const notifRef = useRef(null);
 
-  const menu = usuario?.tipo === 'admin' ? ADMIN_MENU : ALUNO_MENU;
+  const userRole = (usuario?.role || usuario?.tipo || '').toUpperCase();
+  let menu = ALUNO_MENU;
+  if (userRole === 'COPER' || userRole === 'ADMIN') {
+    menu = ADMIN_MENU;
+  } else if (userRole === 'PROFESSOR') {
+    menu = PROFESSOR_MENU;
+  }
 
-  // Carrega notificações para alunos
+  // Carrega notificações para o usuário logado
   useEffect(() => {
-    if (usuario?.tipo === 'aluno' && usuario?.id) {
+    if (usuario?.id) {
       listarNotificacoes(usuario.id)
         .then(setNotificacoes)
         .catch(() => {});
@@ -145,10 +165,10 @@ export default function AppLayout() {
           </div>
 
           <div className="topbar-right">
-            {/* Notificações (apenas aluno) */}
-            {usuario?.tipo === 'aluno' && (
+            {/* Notificações in-app (Sino com badge de novidades) */}
+            {usuario?.id && (
               <div style={{ position: 'relative' }} ref={notifRef}>
-                <button className="notification-btn" onClick={() => setNotifOpen(v => !v)}>
+                <button className="notification-btn" onClick={() => setNotifOpen(v => !v)} title="Notificações">
                   <FontAwesomeIcon icon={faBell} />
                   {notificacoes.length > 0 && (
                     <span className="notif-badge">{notificacoes.length}</span>
@@ -164,8 +184,21 @@ export default function AppLayout() {
                         Sem novas notificações.
                       </div>
                     ) : (
-                      notificacoes.map(n => (
-                        <div key={n.id} className="notif-item">{n.mensagem}</div>
+                      notificacoes.map((n) => (
+                        <div
+                          key={n.id}
+                          className="notif-item"
+                          onClick={() => {
+                            if (n.link) {
+                              navigate(n.link);
+                              setNotifOpen(false);
+                            }
+                          }}
+                          style={{ cursor: n.link ? 'pointer' : 'default', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}
+                        >
+                          {n.titulo && <strong style={{ display: 'block', fontSize: '0.85rem', marginBottom: '2px', color: 'var(--primary)' }}>{n.titulo}</strong>}
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-main)', lineHeight: '1.4' }}>{n.mensagem}</span>
+                        </div>
                       ))
                     )}
                   </div>

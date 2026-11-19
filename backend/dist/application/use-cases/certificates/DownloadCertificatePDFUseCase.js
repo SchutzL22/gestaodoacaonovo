@@ -13,36 +13,176 @@ class DownloadCertificatePDFUseCase {
             'tok-edu-001': 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
         };
         const target = aliasMap[clean.toLowerCase()] || clean;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const certificate = await prisma_js_1.prisma.certificate.findFirst({
             where: {
                 OR: [{ id: target }, { authHash: target }],
             },
             include: {
                 user: true,
+                donation: {
+                    include: {
+                        items: true,
+                        validatedBy: true,
+                        campaign: true,
+                    },
+                },
+                enrollment: {
+                    include: {
+                        classroom: {
+                            include: {
+                                course: {
+                                    include: { instructor: true },
+                                },
+                            },
+                        },
+                    },
+                },
             },
         });
-        if (!certificate) {
-            throw AppError_js_1.AppError.notFound('Certificado não encontrado.');
+        if (certificate) {
+            if (requesterUserId &&
+                requesterRole === index_js_1.UserRole.ALUNO &&
+                certificate.userId !== requesterUserId) {
+                throw AppError_js_1.AppError.forbidden('Você não tem permissão para baixar documentos de outros usuários.');
+            }
+            const isCourse = certificate.type === index_js_1.DocType.COURSE_CERTIFICATE;
+            const isStudent = certificate.user.role === index_js_1.UserRole.ALUNO;
+            let pdfBuffer;
+            if (isCourse) {
+                pdfBuffer = await PDFGeneratorService_js_1.PDFGeneratorService.generateCourseCertificatePDF({
+                    authHash: certificate.authHash,
+                    validationUrl: certificate.validationUrl || `${frontendUrl}/validar?code=${certificate.authHash}`,
+                    userName: certificate.user.name,
+                    userMatricula: certificate.user.matricula,
+                    userCpf: certificate.user.cpf,
+                    courseTitle: certificate.enrollment?.classroom.course.title || certificate.title,
+                    workloadHours: certificate.enrollment?.classroom.course.workloadHours || certificate.hours || 40,
+                    startDate: certificate.enrollment?.classroom.startDate,
+                    endDate: certificate.enrollment?.classroom.endDate,
+                    instructorName: certificate.enrollment?.classroom.course.instructor?.name || 'Coordenação de Extensão COPER',
+                    finalGrade: certificate.enrollment?.finalGrade,
+                    attendancePct: certificate.enrollment?.attendancePercentage,
+                    issuedAt: certificate.issuedAt,
+                });
+            }
+            else if (isStudent) {
+                pdfBuffer = await PDFGeneratorService_js_1.PDFGeneratorService.generateStudentDonationPDF({
+                    authHash: certificate.authHash,
+                    validationUrl: certificate.validationUrl || `${frontendUrl}/validar?code=${certificate.authHash}`,
+                    userName: certificate.user.name,
+                    userMatricula: certificate.user.matricula,
+                    userEmail: certificate.user.email,
+                    userCpf: certificate.user.cpf,
+                    items: certificate.donation?.items.map((i) => ({
+                        description: i.description,
+                        category: i.category,
+                        quantity: i.quantity,
+                        unit: i.unit || 'un.',
+                    })) || [{ description: 'Doação Solidária', quantity: 1, unit: 'itens' }],
+                    hoursEarned: certificate.hours || 0,
+                    receivedByName: 'Balcão de Atendimento COPER',
+                    validatedByName: certificate.donation?.validatedBy?.name || 'Coordenação COPER FMP',
+                    approvedAt: certificate.issuedAt,
+                    campaignTitle: certificate.donation?.campaign?.title || certificate.title,
+                });
+            }
+            else {
+                pdfBuffer = await PDFGeneratorService_js_1.PDFGeneratorService.generateCivilOrProfessorDonationPDF({
+                    authHash: certificate.authHash,
+                    validationUrl: certificate.validationUrl || `${frontendUrl}/validar?code=${certificate.authHash}`,
+                    userName: certificate.user.name,
+                    userRole: certificate.user.role || 'CIVIL',
+                    userCpf: certificate.user.cpf,
+                    userEmail: certificate.user.email,
+                    items: certificate.donation?.items.map((i) => ({
+                        description: i.description,
+                        category: i.category,
+                        quantity: i.quantity,
+                        unit: i.unit || 'un.',
+                    })) || [{ description: 'Doação Solidária', quantity: 1, unit: 'itens' }],
+                    receivedByName: 'Balcão de Atendimento COPER',
+                    validatedByName: certificate.donation?.validatedBy?.name || 'Coordenação COPER FMP',
+                    approvedAt: certificate.issuedAt,
+                    observation: certificate.description,
+                    campaignTitle: certificate.donation?.campaign?.title || certificate.title,
+                });
+            }
+            return {
+                pdfBuffer,
+                filename: `COPER_${certificate.type}_${certificate.authHash.substring(0, 8)}.pdf`,
+            };
+        }
+        const donation = await prisma_js_1.prisma.donation.findFirst({
+            where: {
+                OR: [{ id: target }, { authHash: target }],
+            },
+            include: {
+                user: true,
+                items: true,
+                validatedBy: true,
+                campaign: true,
+            },
+        });
+        if (!donation) {
+            throw AppError_js_1.AppError.notFound('Certificado ou comprovante de doação não encontrado.');
+        }
+        if (donation.status !== index_js_1.DonationStatus.APPROVED) {
+            throw AppError_js_1.AppError.badRequest('O comprovante em PDF só pode ser emitido para doações com status APROVADA.');
         }
         if (requesterUserId &&
-            requesterRole === 'ALUNO' &&
-            certificate.userId !== requesterUserId) {
-            throw AppError_js_1.AppError.forbidden('Você não tem permissão para baixar certificados de outros alunos.');
+            requesterRole === index_js_1.UserRole.ALUNO &&
+            donation.userId !== requesterUserId) {
+            throw AppError_js_1.AppError.forbidden('Você não tem permissão para baixar comprovantes de outros alunos.');
         }
-        const pdfBuffer = await PDFGeneratorService_js_1.PDFGeneratorService.generateCertificateBuffer({
-            authHash: certificate.authHash,
-            userName: certificate.user.name,
-            userCpf: certificate.user.cpf,
-            title: certificate.title,
-            description: certificate.description || undefined,
-            type: certificate.type === index_js_1.DocType.COURSE_CERTIFICATE ? 'COURSE_CERTIFICATE' : 'DONATION_DECLARATION',
-            hours: certificate.hours || 0,
-            issuedAt: certificate.issuedAt,
-            validationUrl: certificate.validationUrl,
-        });
+        const isStudent = donation.user.role === index_js_1.UserRole.ALUNO;
+        const validationUrl = `${frontendUrl}/validar?code=${donation.authHash}`;
+        let pdfBuffer;
+        if (isStudent) {
+            pdfBuffer = await PDFGeneratorService_js_1.PDFGeneratorService.generateStudentDonationPDF({
+                authHash: donation.authHash,
+                validationUrl,
+                userName: donation.donorName || donation.user.name,
+                userMatricula: donation.user.matricula,
+                userEmail: donation.user.email,
+                userCpf: donation.donorCpf || donation.user.cpf,
+                items: donation.items.map((i) => ({
+                    description: i.description,
+                    category: i.category,
+                    quantity: i.quantity,
+                    unit: i.unit || 'un.',
+                })),
+                hoursEarned: donation.hoursEarned || 0,
+                receivedByName: 'Balcão de Atendimento COPER',
+                validatedByName: donation.validatedBy?.name || 'Coordenação COPER FMP',
+                approvedAt: donation.updatedAt || donation.createdAt,
+                campaignTitle: donation.campaign?.title || 'Campanha Solidária COPER',
+            });
+        }
+        else {
+            pdfBuffer = await PDFGeneratorService_js_1.PDFGeneratorService.generateCivilOrProfessorDonationPDF({
+                authHash: donation.authHash,
+                validationUrl,
+                userName: donation.donorName || donation.user.name,
+                userRole: donation.user.role || 'CIVIL',
+                userCpf: donation.donorCpf || donation.user.cpf,
+                userEmail: donation.user.email,
+                items: donation.items.map((i) => ({
+                    description: i.description,
+                    category: i.category,
+                    quantity: i.quantity,
+                    unit: i.unit || 'un.',
+                })),
+                receivedByName: 'Balcão de Atendimento COPER',
+                validatedByName: donation.validatedBy?.name || 'Coordenação COPER FMP',
+                approvedAt: donation.updatedAt || donation.createdAt,
+                observation: donation.observation,
+                campaignTitle: donation.campaign?.title || 'Campanha Solidária COPER',
+            });
+        }
         return {
             pdfBuffer,
-            filename: `COPER_${certificate.type}_${certificate.authHash.substring(0, 8)}.pdf`,
+            filename: `COPER_Comprovante_Doacao_${donation.authHash.substring(0, 8)}.pdf`,
         };
     }
 }

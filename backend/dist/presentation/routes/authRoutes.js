@@ -25,5 +25,8 @@ const authLimiter = (0, express_rate_limit_1.default)({
 router.post('/register', authLimiter, (0, validationMiddleware_js_1.validate)({ body: auth_dto_js_1.registerSchema }), authController.register);
 router.post('/login', authLimiter, (0, validationMiddleware_js_1.validate)({ body: auth_dto_js_1.loginSchema }), authController.login);
 router.post('/refresh', (0, validationMiddleware_js_1.validate)({ body: auth_dto_js_1.refreshTokenSchema }), authController.refreshToken);
+router.post('/logout', authController.logout);
 router.get('/me', authMiddleware_js_1.authMiddleware, authController.me);
+router.post('/forgot-password', authLimiter, (0, validationMiddleware_js_1.validate)({ body: auth_dto_js_1.forgotPasswordSchema }), authController.forgotPassword);
+router.post('/reset-password', authLimiter, (0, validationMiddleware_js_1.validate)({ body: auth_dto_js_1.resetPasswordSchema }), authController.resetPassword);
 exports.default = router;
