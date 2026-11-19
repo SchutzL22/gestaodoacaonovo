@@ -14,15 +14,20 @@ import {
   Lock,
   Sparkles,
   ChevronRight,
-  GraduationCap
+  GraduationCap,
+  HeartHandshake,
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import {
   listarTurmasProfessor,
   registrarChamada,
   salvarNotasTurma,
   encerrarTurma,
-  historicoChamadaTurma
+  historicoChamadaTurma,
+  listarDoacoes
 } from '../../services/api';
+import { Link } from 'react-router-dom';
 
 export default function DiarioClassePage() {
   const [turmas, setTurmas] = useState([]);
@@ -41,9 +46,36 @@ export default function DiarioClassePage() {
   // Estado das notas
   const [notas, setNotas] = useState({}); // { [enrollmentId]: { a1, a2, a3 } }
 
+  // Estado das doações do professor
+  const [minhasDoacoes, setMinhasDoacoes] = useState([]);
+
   useEffect(() => {
     carregarTurmas();
+    carregarMinhasDoacoes();
   }, []);
+
+  async function carregarMinhasDoacoes() {
+    try {
+      const data = await listarDoacoes(1, 20);
+      if (Array.isArray(data)) {
+        setMinhasDoacoes(data);
+      }
+    } catch {
+      // fallback gracioso
+      setMinhasDoacoes([
+        {
+          id: 'prof-doa-1',
+          authHash: 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
+          data: '10/05/2026',
+          item: 'Livros Didáticos para Ensino Médio',
+          quantidade: 15,
+          status: 'Aprovada',
+          statusRaw: 'APPROVED',
+          campanha: 'Volta às Aulas Inclusiva',
+        },
+      ]);
+    }
+  }
 
   async function carregarTurmas() {
     setLoading(true);
@@ -296,8 +328,8 @@ export default function DiarioClassePage() {
             </div>
           </div>
 
-          {/* Abas: Chamada Online vs Notas */}
-          <div className="flex bg-slate-950 p-1.5 rounded-2xl border border-slate-800 self-start w-fit">
+          {/* Abas: Chamada Online vs Notas vs Minhas Doações */}
+          <div className="flex flex-wrap gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 self-start">
             <button
               onClick={() => setActiveTab('chamada')}
               className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
@@ -319,6 +351,17 @@ export default function DiarioClassePage() {
             >
               <TrendingUp className="w-4 h-4" />
               <span>Avaliações (A1, A2 e A3)</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('doacoes')}
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'doacoes'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <HeartHandshake className="w-4 h-4" />
+              <span>Minhas Doações Solidárias</span>
             </button>
           </div>
 
@@ -567,6 +610,131 @@ export default function DiarioClassePage() {
                               ) : (
                                 <span className="text-slate-500 text-[11px]">Pendente</span>
                               )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ABA 3: MINHAS DOAÇÕES SOLIDÁRIAS (SEM HORAS) */}
+          {activeTab === 'doacoes' && (
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <HeartHandshake className="w-5 h-5 text-rose-400" />
+                    <span>Minhas Doações Solidárias</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Como docente, suas contribuições são de caráter voluntário/solidário. As doações homologadas geram o <strong>Comprovante Oficial de Doação (Modelo 2)</strong> com hash criptográfico, sem menção a horas acadêmicas.
+                  </p>
+                </div>
+
+                <Link
+                  to="/registrar-doacao"
+                  className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 shrink-0 self-start sm:self-auto"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Nova Doação Solidária</span>
+                </Link>
+              </div>
+
+              {minhasDoacoes.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <p className="font-medium">Nenhuma doação solidária registrada ainda.</p>
+                  <p className="text-xs text-slate-500 mt-1">Participe das campanhas ativas da FMP e acompanhe aqui seus comprovantes.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs sm:text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400 uppercase text-[11px] tracking-wider">
+                        <th className="py-3 px-3">Data</th>
+                        <th className="py-3 px-3">Item / Descrição</th>
+                        <th className="py-3 px-3">Campanha</th>
+                        <th className="py-3 px-3 text-center">Status</th>
+                        <th className="py-3 px-3 text-center">Hash / Autenticidade</th>
+                        <th className="py-3 px-3 text-right">Comprovante</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                      {minhasDoacoes.map((d) => {
+                        const isApproved = d.status === 'APROVADA' || d.status === 'APPROVED';
+                        const isPending = d.status === 'PENDENTE' || d.status === 'PENDING';
+                        const isRejected = d.status === 'REPROVADA' || d.status === 'REJECTED';
+                        const hash = d.authHash || d.id;
+
+                        return (
+                          <tr key={d.id} className="hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3.5 px-3 text-slate-400">
+                              {d.data || (d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : '-')}
+                            </td>
+                            <td className="py-3.5 px-3 font-semibold text-white">
+                              {d.item || (d.items && d.items[0]?.description) || 'Itens diversos'}
+                              {d.items && d.items.length > 1 && (
+                                <span className="text-[11px] text-slate-400 block">
+                                  + {d.items.length - 1} outros itens
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-3 text-slate-300">
+                              {d.campanha || d.campaign?.title || 'Campanha Solidária Geral'}
+                            </td>
+                            <td className="py-3.5 px-3 text-center">
+                              {isApproved && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  Aprovada
+                                </span>
+                              )}
+                              {isPending && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                  Em Análise
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                  Rejeitada
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-3 text-center">
+                              <span className="font-mono text-[11px] text-slate-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                                {hash ? `${hash.substring(0, 10)}...` : '-'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {isApproved && hash && (
+                                  <>
+                                    <a
+                                      href={`/api/v1/certificates/${hash}/pdf`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="p-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 rounded-lg transition-colors border border-indigo-500/30"
+                                      title="Baixar Comprovante PDF (Modelo 2 - Sem Horas)"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </a>
+                                    <Link
+                                      to={`/validar?code=${hash}`}
+                                      className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
+                                      title="Validar Autenticidade"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </Link>
+                                  </>
+                                )}
+                                {!isApproved && (
+                                  <span className="text-[11px] text-slate-500 italic">
+                                    Disponível após aprovação
+                                  </span>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );

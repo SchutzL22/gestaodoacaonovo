@@ -39,7 +39,7 @@ const anonymousDonationSchema = z.object({
     .transform((val) => val.replace(/\D/g, '')),
   donorEmail: z.string().email('E-mail inválido').optional().nullable(),
   donorPhone: z.string().optional().nullable(),
-  campaignId: z.string().uuid('ID de campanha inválido').optional().nullable(),
+  campaignId: z.string().optional().nullable(),
   evidenceUrl: z.string().url('URL de evidência inválida').optional().nullable(),
   observation: z.string().optional().nullable(),
   items: z
@@ -89,6 +89,12 @@ router.post(
         });
       }
 
+      let validCampaignId: string | null = null;
+      if (campaignId) {
+        const camp = await prisma.campaign.findUnique({ where: { id: campaignId } }).catch(() => null);
+        if (camp) validCampaignId = campaignId;
+      }
+
       const authHash = uuidv4();
 
       const donation = await prisma.donation.create({
@@ -98,7 +104,7 @@ router.post(
           authHash,
           donorName,
           donorCpf,
-          campaignId: campaignId || null,
+          campaignId: validCampaignId,
           evidenceUrl: evidenceUrl || null,
           observation: observation || (donorPhone ? `Telefone informado: ${donorPhone}` : null),
           items: {

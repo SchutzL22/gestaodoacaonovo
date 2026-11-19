@@ -11,6 +11,7 @@ import legacyCompatRoutes from './legacyCompatRoutes.js';
 import userRoutes from './userRoutes.js';
 import campaignRoutes from './campaignRoutes.js';
 import reportRoutes from './reportRoutes.js';
+import searchRoutes from './searchRoutes.js';
 
 const apiRouter = Router();
 
@@ -19,6 +20,7 @@ apiRouter.use('/auth', authRoutes);
 apiRouter.use('/donations', donationRoutes);
 apiRouter.use('/campaigns', campaignRoutes);
 apiRouter.use('/reports', reportRoutes);
+apiRouter.use('/search', searchRoutes);
 apiRouter.use('/courses', courseRoutes);
 apiRouter.use('/classrooms', classroomRoutes);
 apiRouter.use('/enrollments', enrollmentRoutes);
@@ -34,6 +36,7 @@ v1Router.use('/auth', authRoutes);
 v1Router.use('/donations', donationRoutes);
 v1Router.use('/campaigns', campaignRoutes);
 v1Router.use('/reports', reportRoutes);
+v1Router.use('/search', searchRoutes);
 v1Router.use('/courses', courseRoutes);
 v1Router.use('/classrooms', classroomRoutes);
 v1Router.use('/enrollments', enrollmentRoutes);

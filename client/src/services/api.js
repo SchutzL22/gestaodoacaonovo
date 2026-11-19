@@ -304,4 +304,10 @@ export const validarCertificado = (hash) =>
 export const statsPublicas = () =>
   api.get('/public/stats').then((r) => r.data.data);
 
+export const registrarDoacaoAnonima = (dados) =>
+  api.post('/public/doacoes/anonima', dados).then((r) => r.data);
+
+export const pesquisaGlobal = (q) =>
+  api.get(`/search?q=${encodeURIComponent(q)}`).then((r) => r.data.data);
+
 export default api;

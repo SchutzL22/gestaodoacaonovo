@@ -28,6 +28,8 @@ function PrivateRoute({ children, role }) {
     const defaultRoute =
       usuario.role === 'PROFESSOR'
         ? '/diario-classe'
+        : usuario.role === 'EMPRESARIO'
+        ? '/painel-impacto'
         : usuario.tipo === 'admin' || usuario.role === 'COPER'
         ? '/dashboard'
         : '/meu-painel';
@@ -42,6 +44,7 @@ function AppRoutes() {
   const getHomeRoute = () => {
     if (!usuario) return '/login';
     if (usuario.role === 'PROFESSOR') return '/diario-classe';
+    if (usuario.role === 'EMPRESARIO') return '/painel-impacto';
     if (usuario.tipo === 'admin' || usuario.role === 'COPER') return '/dashboard';
     return '/meu-painel';
   };

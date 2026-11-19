@@ -36,7 +36,7 @@ const anonymousDonationSchema = zod_1.z.object({
         .transform((val) => val.replace(/\D/g, '')),
     donorEmail: zod_1.z.string().email('E-mail inválido').optional().nullable(),
     donorPhone: zod_1.z.string().optional().nullable(),
-    campaignId: zod_1.z.string().uuid('ID de campanha inválido').optional().nullable(),
+    campaignId: zod_1.z.string().optional().nullable(),
     evidenceUrl: zod_1.z.string().url('URL de evidência inválida').optional().nullable(),
     observation: zod_1.z.string().optional().nullable(),
     items: zod_1.z
@@ -65,6 +65,12 @@ router.post('/doacoes/anonima', (0, validationMiddleware_js_1.validate)({ body: 
                 message: 'Sistema temporariamente indisponível para registro anônimo.',
             });
         }
+        let validCampaignId = null;
+        if (campaignId) {
+            const camp = await prisma_js_1.prisma.campaign.findUnique({ where: { id: campaignId } }).catch(() => null);
+            if (camp)
+                validCampaignId = campaignId;
+        }
         const authHash = (0, uuid_1.v4)();
         const donation = await prisma_js_1.prisma.donation.create({
             data: {
@@ -73,7 +79,7 @@ router.post('/doacoes/anonima', (0, validationMiddleware_js_1.validate)({ body: 
                 authHash,
                 donorName,
                 donorCpf,
-                campaignId: campaignId || null,
+                campaignId: validCampaignId,
                 evidenceUrl: evidenceUrl || null,
                 observation: observation || (donorPhone ? `Telefone informado: ${donorPhone}` : null),
                 items: {
