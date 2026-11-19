@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Award, FileText, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
+import { Award, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function HistoricoAlunoPage() {

@@ -23,11 +23,17 @@ router.post(
 // Listar doações (contextual por perfil)
 router.get('/', donationController.list);
 
-// Obter detalhes de uma doação específica
-router.get('/:id', donationController.getById);
+// Listar minhas próprias doações
+router.get('/my', donationController.list);
+
+// Listar doações de um estudante específico
+router.get('/student/:studentId', donationController.listByStudent);
 
 // Download oficial do comprovante de doação em PDF (Aprovada)
 router.get('/:id/pdf', donationController.downloadPdf);
+
+// Obter detalhes de uma doação específica
+router.get('/:id', donationController.getById);
 
 // Validação e aprovação/rejeição de doação física (Exclusivo COPER)
 router.patch(

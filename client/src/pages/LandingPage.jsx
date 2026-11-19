@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import fmpLogo from '../assets/fmplogo.png';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   HeartHandshake,
@@ -8,7 +8,6 @@ import {
   Award,
   Users,
   Package,
-  ArrowRight,
   CheckCircle2,
   Sparkles,
   BarChart3,
@@ -16,14 +15,6 @@ import {
   LogIn,
   Search,
   ExternalLink,
-  BookOpen,
-  Calendar,
-  Building2,
-  Clock,
-  Layers,
-  ChevronRight,
-  FileCheck2,
-  Download,
   AlertCircle
 } from 'lucide-react';
 import {
@@ -46,7 +37,6 @@ const CATEGORY_COLORS = ['#0284c7', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b'];
 
 export default function LandingPage() {
   const { usuario } = useAuth();
-  const navigate = useNavigate();
 
   // Scroll state para a navbar
   const [scrolled, setScrolled] = useState(false);

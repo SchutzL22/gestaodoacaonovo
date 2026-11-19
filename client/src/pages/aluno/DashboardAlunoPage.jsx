@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Award, Clock, BookOpen, HeartHandshake, CheckCircle2, ChevronRight, FileText } from 'lucide-react';
+import { Award, Clock, BookOpen, HeartHandshake, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 
 export default function DashboardAlunoPage() {
   const { usuario } = useAuth();
-  const [stats, setStats] = useState({
+  const [stats] = useState({
     horasTotais: 35,
     doacoesCount: 3,
     cursosAtivos: 1,

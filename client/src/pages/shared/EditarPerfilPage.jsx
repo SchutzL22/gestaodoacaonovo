@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { User, Mail, IdCard, Lock, Save } from 'lucide-react';
+import { User, Mail, Lock, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function EditarPerfilPage() {
   const { usuario } = useAuth();
   const [nome, setNome] = useState(usuario?.nome || 'Lucas Alexandre');
   const [email] = useState(usuario?.email || 'aluno@coper.edu.br');
-  const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
 
   const handleSubmit = (e) => {

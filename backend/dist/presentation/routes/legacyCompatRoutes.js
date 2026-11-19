@@ -430,4 +430,36 @@ router.get('/doacoes', async (req, res, next) => {
         next(err);
     }
 });
+router.get('/doacoes/aluno/:alunoId', async (req, res, next) => {
+    try {
+        const alunoId = String(req.params.alunoId);
+        const donations = await prisma_js_1.prisma.donation.findMany({
+            where: {
+                OR: [
+                    { userId: alunoId },
+                    { user: { cpf: alunoId } },
+                    { user: { matricula: alunoId } },
+                ],
+            },
+            include: {
+                items: true,
+                user: { select: { name: true, cpf: true, email: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json(donations.map((d) => ({
+            id: d.id,
+            data: d.createdAt.toLocaleDateString('pt-BR'),
+            aluno: d.user.name,
+            matricula: d.user.cpf,
+            item: d.items[0]?.description || 'Doação Diversa',
+            quantidade: d.items[0]?.quantity || 1,
+            horas: d.hoursEarned,
+            status: d.status === 'APPROVED' ? 'Aprovada' : d.status === 'REJECTED' ? 'Reprovada' : 'Pendente',
+        })));
+    }
+    catch (err) {
+        next(err);
+    }
+});
 exports.default = router;

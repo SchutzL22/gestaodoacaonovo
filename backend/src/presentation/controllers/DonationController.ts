@@ -148,6 +148,35 @@ export class DonationController {
     }
   };
 
+  listByStudent = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) throw AppError.unauthorized();
+      const studentId = req.params.studentId as string;
+
+      if (req.user.role === UserRole.ALUNO && req.user.userId !== studentId) {
+        throw AppError.forbidden('Você só tem permissão para visualizar suas próprias doações.');
+      }
+
+      const donations = await prisma.donation.findMany({
+        where: { userId: studentId },
+        include: {
+          items: true,
+          campaign: { select: { id: true, title: true } },
+          validatedBy: { select: { id: true, name: true, email: true } },
+          certificate: { select: { id: true, authHash: true, validationUrl: true, issuedAt: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      res.status(200).json({
+        status: 'success',
+        data: donations,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getById = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) throw AppError.unauthorized();

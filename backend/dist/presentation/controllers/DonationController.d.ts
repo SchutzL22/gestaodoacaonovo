@@ -9,6 +9,7 @@ export declare class DonationController {
     approve: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     reject: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     list: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+    listByStudent: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     getById: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     downloadPdf: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 }

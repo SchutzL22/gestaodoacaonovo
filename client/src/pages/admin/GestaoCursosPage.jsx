@@ -4,14 +4,9 @@ import {
   BookOpen,
   Users,
   PlusCircle,
-  Calendar,
-  Clock,
-  Award,
-  AlertCircle,
   CheckCircle2,
   ListOrdered,
   X,
-  Search,
   Eye,
   GraduationCap
 } from 'lucide-react';

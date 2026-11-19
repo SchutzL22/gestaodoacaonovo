@@ -7,12 +7,10 @@ import {
   Award,
   Users,
   CheckCircle2,
-  AlertTriangle,
   ListOrdered,
   LogOut,
   FileText,
   ExternalLink,
-  ChevronRight,
   TrendingUp,
   Percent
 } from 'lucide-react';
