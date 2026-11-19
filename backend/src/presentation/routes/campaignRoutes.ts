@@ -9,28 +9,77 @@ import { AppError } from '../../domain/errors/AppError.js';
 
 const router = Router();
 
-const createCampaignSchema = z.object({
-  title: z.string().min(3, 'Título deve ter no mínimo 3 caracteres'),
-  description: z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres'),
-  status: z.nativeEnum(CampaignStatus).default(CampaignStatus.ACTIVE),
-  startDate: z.string().optional().nullable(),
-  endDate: z.string().optional().nullable(),
-  hoursLimit: z.number().positive().optional().nullable(),
-  conversionRules: z.string().optional().nullable(),
-  isUrgent: z.boolean().default(false),
-  priorityItems: z
-    .array(
-      z.object({
-        name: z.string().min(2, 'Nome do item prioritário é obrigatório'),
-        goal: z.number().positive().optional().nullable(),
-        urgencyLevel: z.string().default('NORMAL'),
-        isUrgent: z.boolean().default(false),
-      })
-    )
-    .optional(),
-});
+/** Calcula o status de uma campanha com base nas datas atuais. */
+function computeCampaignStatus(startDate?: Date | null, endDate?: Date | null, currentStatus?: CampaignStatus | string | null): CampaignStatus {
+  if (currentStatus === CampaignStatus.CLOSED || currentStatus === 'CLOSED' || currentStatus === 'Encerrada') {
+    return CampaignStatus.CLOSED;
+  }
+  const now = new Date();
+  if (startDate && now < startDate) return CampaignStatus.FUTURE;
+  if (endDate && now > endDate) return CampaignStatus.CLOSED;
+  return CampaignStatus.ACTIVE;
+}
 
-const updateCampaignSchema = createCampaignSchema.partial();
+const createCampaignSchema = z
+  .object({
+    title: z.string().min(3, 'Título deve ter no mínimo 3 caracteres'),
+    description: z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres'),
+    startDate: z.string().min(1, 'Data de início é obrigatória'),
+    endDate: z.string().optional().nullable(),
+    hoursLimit: z.number().positive().optional().nullable(),
+    conversionRules: z.string().optional().nullable(),
+    isUrgent: z.boolean().default(false),
+    priorityItems: z
+      .array(
+        z.object({
+          name: z.string().min(2, 'Nome do item prioritário é obrigatório'),
+          goal: z.number().positive().optional().nullable(),
+          urgencyLevel: z.string().default('NORMAL'),
+          isUrgent: z.boolean().default(false),
+        })
+      )
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.endDate && data.startDate) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+      }
+      return true;
+    },
+    { message: 'A data limite deve ser igual ou posterior à data de início.', path: ['endDate'] }
+  );
+
+// Para updates, startDate também é opcional (mantém o existente se não enviada)
+const updateCampaignSchema = z
+  .object({
+    title: z.string().min(3, 'Título deve ter no mínimo 3 caracteres').optional(),
+    description: z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres').optional(),
+    startDate: z.string().optional().nullable(),
+    endDate: z.string().optional().nullable(),
+    hoursLimit: z.number().positive().optional().nullable(),
+    conversionRules: z.string().optional().nullable(),
+    isUrgent: z.boolean().optional(),
+    priorityItems: z
+      .array(
+        z.object({
+          name: z.string().min(2),
+          goal: z.number().positive().optional().nullable(),
+          urgencyLevel: z.string().default('NORMAL'),
+          isUrgent: z.boolean().default(false),
+        })
+      )
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.endDate && data.startDate) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+      }
+      return true;
+    },
+    { message: 'A data limite deve ser igual ou posterior à data de início.', path: ['endDate'] }
+  );
 
 const priorityItemSchema = z.object({
   name: z.string().min(2, 'Nome do item é obrigatório'),
@@ -42,12 +91,8 @@ const priorityItemSchema = z.object({
 // Listar todas as campanhas (Público / Autenticado)
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, urgentOnly } = req.query;
+    const { urgentOnly } = req.query;
     const where: any = {};
-
-    if (status && Object.values(CampaignStatus).includes(status as any)) {
-      where.status = status;
-    }
 
     if (urgentOnly === 'true') {
       where.isUrgent = true;
@@ -62,7 +107,13 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
     });
 
-    res.json({ status: 'success', data: { campaigns } });
+    // Recomputa status com base nas datas (sobrepõe o valor salvo no banco)
+    const campaignsWithStatus = campaigns.map((c) => ({
+      ...c,
+      status: computeCampaignStatus(c.startDate, c.endDate, c.status),
+    }));
+
+    res.json({ status: 'success', data: { campaigns: campaignsWithStatus } });
   } catch (err) {
     next(err);
   }
@@ -79,7 +130,7 @@ router.get('/items/priority', async (req: Request, res: Response, next: NextFunc
       },
       include: {
         campaign: {
-          select: { id: true, title: true, status: true, isUrgent: true, endDate: true },
+          select: { id: true, title: true, status: true, isUrgent: true, endDate: true, startDate: true },
         },
       },
       orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
@@ -111,7 +162,13 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       throw AppError.notFound('Campanha não encontrada.');
     }
 
-    res.json({ status: 'success', data: { campaign } });
+    // Retorna com status computado
+    const campaignWithStatus = {
+      ...campaign,
+      status: computeCampaignStatus(campaign.startDate, campaign.endDate, campaign.status),
+    };
+
+    res.json({ status: 'success', data: { campaign: campaignWithStatus } });
   } catch (err) {
     next(err);
   }
@@ -127,11 +184,18 @@ router.post(
     try {
       const { priorityItems, startDate, endDate, ...campaignData } = req.body;
 
+      const parsedStartDate = new Date(startDate);
+      const parsedEndDate = endDate ? new Date(endDate) : null;
+
+      // Status calculado automaticamente — ignora qualquer valor enviado pelo cliente
+      const autoStatus = computeCampaignStatus(parsedStartDate, parsedEndDate);
+
       const campaign = await prisma.campaign.create({
         data: {
           ...campaignData,
-          startDate: startDate ? new Date(startDate) : null,
-          endDate: endDate ? new Date(endDate) : null,
+          status: autoStatus,
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
           priorityItems: priorityItems && priorityItems.length > 0 ? {
             create: priorityItems.map((item: any) => ({
               name: item.name,
@@ -170,6 +234,12 @@ router.put(
       if (startDate !== undefined) updatePayload.startDate = startDate ? new Date(startDate) : null;
       if (endDate !== undefined) updatePayload.endDate = endDate ? new Date(endDate) : null;
 
+      // Busca datas atuais para recalcular status
+      const existing = await prisma.campaign.findUnique({ where: { id }, select: { startDate: true, endDate: true } });
+      const newStart = updatePayload.startDate ?? existing?.startDate;
+      const newEnd = updatePayload.endDate ?? existing?.endDate;
+      updatePayload.status = computeCampaignStatus(newStart, newEnd);
+
       const campaign = await prisma.campaign.update({
         where: { id },
         data: updatePayload,
@@ -181,6 +251,26 @@ router.put(
         message: 'Campanha atualizada com sucesso!',
         data: { campaign },
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// Encerrar campanha manualmente (Exclusivo COPER)
+router.put(
+  '/:id/encerrar',
+  authMiddleware,
+  requireRoles(Role.COPER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = String(req.params.id);
+      const campaign = await prisma.campaign.update({
+        where: { id },
+        data: { status: CampaignStatus.CLOSED },
+        include: { priorityItems: true },
+      });
+      res.json({ status: 'success', message: 'Campanha encerrada com sucesso.', data: { campaign } });
     } catch (err) {
       next(err);
     }
@@ -236,4 +326,5 @@ router.delete(
   }
 );
 
+export { computeCampaignStatus };
 export default router;

@@ -209,5 +209,43 @@ describe('Sistema COPER 3.0 - Módulo Acadêmico de Cursos e Avaliações', () =
     const parsed = launchClassroomGradesSchema.safeParse(invalidGrades);
     expect(parsed.success).toBe(false);
   });
+
+  describe('Validação de Campanhas e Período (data_inicio e data_limite)', () => {
+    it('deve calcular status FUTURA se a data de início for posterior ao momento atual', async () => {
+      const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+      const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // +7 dias
+      const futureEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 dias
+
+      const status = computeCampaignStatus(futureStart, futureEnd);
+      expect(status).toBe('FUTURE');
+    });
+
+    it('deve calcular status ATIVA se a data atual estiver dentro do intervalo', async () => {
+      const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+      const pastStart = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000); // -5 dias
+      const futureEnd = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // +15 dias
+
+      const status = computeCampaignStatus(pastStart, futureEnd);
+      expect(status).toBe('ACTIVE');
+    });
+
+    it('deve calcular status ENCERRADA (CLOSED) se a data limite for anterior à data atual', async () => {
+      const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+      const pastStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const pastEnd = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+
+      const status = computeCampaignStatus(pastStart, pastEnd);
+      expect(status).toBe('CLOSED');
+    });
+
+    it('deve manter status CLOSED se a campanha foi encerrada manualmente', async () => {
+      const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+      const pastStart = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      const futureEnd = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
+
+      const status = computeCampaignStatus(pastStart, futureEnd, 'CLOSED');
+      expect(status).toBe('CLOSED');
+    });
+  });
 });
 

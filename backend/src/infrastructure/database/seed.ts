@@ -242,7 +242,11 @@ export async function seed() {
   // 2. Campanhas e Itens Prioritários
   const campaign1 = await prisma.campaign.upsert({
     where: { id: 'c0a80123-0000-0000-0000-000000000101' },
-    update: {},
+    update: {
+      startDate: new Date('2026-04-01'),
+      endDate: new Date('2026-07-31'),
+      status: CampaignStatus.ACTIVE,
+    },
     create: {
       id: 'c0a80123-0000-0000-0000-000000000101',
       title: 'Campanha do Agasalho FMP 2026',
@@ -265,7 +269,11 @@ export async function seed() {
 
   const campaign2 = await prisma.campaign.upsert({
     where: { id: 'c0a80123-0000-0000-0000-000000000102' },
-    update: {},
+    update: {
+      startDate: new Date('2026-02-01'),
+      endDate: new Date('2026-11-30'),
+      status: CampaignStatus.ACTIVE,
+    },
     create: {
       id: 'c0a80123-0000-0000-0000-000000000102',
       title: 'Arrecadação de Alimentos e Cestas Básicas',
@@ -288,7 +296,11 @@ export async function seed() {
 
   await prisma.campaign.upsert({
     where: { id: 'c0a80123-0000-0000-0000-000000000103' },
-    update: {},
+    update: {
+      startDate: new Date('2026-08-01'),
+      endDate: new Date('2026-10-31'),
+      status: CampaignStatus.FUTURE,
+    },
     create: {
       id: 'c0a80123-0000-0000-0000-000000000103',
       title: 'Campanha de Livros e Cidadania Digital',
@@ -304,6 +316,26 @@ export async function seed() {
           { name: 'Livros de Ensino Fundamental/Médio', goal: 80, urgencyLevel: 'NORMAL', isUrgent: false },
         ],
       },
+    },
+  });
+
+  await prisma.campaign.upsert({
+    where: { id: 'c0a80123-0000-0000-0000-000000000104' },
+    update: {
+      startDate: new Date('2025-11-01'),
+      endDate: new Date('2025-12-25'),
+      status: CampaignStatus.CLOSED,
+    },
+    create: {
+      id: 'c0a80123-0000-0000-0000-000000000104',
+      title: 'Campanha de Brinquedos e Natal Solidário 2025',
+      description: 'Arrecadação de brinquedos novos e usados para crianças de entidades assistidas.',
+      status: CampaignStatus.CLOSED,
+      isUrgent: false,
+      hoursLimit: 10,
+      conversionRules: '1 brinquedo = 2 horas complementares',
+      startDate: new Date('2025-11-01'),
+      endDate: new Date('2025-12-25'),
     },
   });
 

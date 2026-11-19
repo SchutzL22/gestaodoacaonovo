@@ -13,7 +13,11 @@ export default function RegistrarDoacaoPage() {
 
   useEffect(() => {
     listarCampanhas()
-      .then(cs => setCampanhas(cs.filter(c => c.status !== 'Encerrada')))
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data?.campaigns || data?.data?.campaigns || []);
+        // Exibe apenas campanhas ATIVAS para registrar doações (suporte a enum novo e legado)
+        setCampanhas(list.filter(c => c.status === 'ACTIVE' || c.status === 'Ativa'));
+      })
       .catch(console.error);
   }, []);
 
@@ -72,9 +76,17 @@ export default function RegistrarDoacaoPage() {
               <label>Campanha *</label>
               <select name="campanhaId" value={form.campanhaId} onChange={handleChange} required>
                 <option value="">Selecione uma campanha</option>
-                {campanhas.map(c => (
-                  <option key={c.id} value={c.id}>{c.titulo}</option>
-                ))}
+                {campanhas.map(c => {
+                  const titulo = c.title || c.titulo || '';
+                  const start = c.startDate || c.dataInicio;
+                  const end = c.endDate || c.dataLimite;
+                  const periodo = start
+                    ? ` (De ${new Date(start).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} até ${end ? new Date(end).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'em aberto'})`
+                    : '';
+                  return (
+                    <option key={c.id} value={c.id}>{titulo}{periodo}</option>
+                  );
+                })}
               </select>
             </div>
             <div className="form-group">

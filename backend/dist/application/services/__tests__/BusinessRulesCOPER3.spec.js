@@ -177,4 +177,34 @@ const index_js_1 = require("../../../domain/enums/index.js");
         const parsed = launchClassroomGradesSchema.safeParse(invalidGrades);
         (0, vitest_1.expect)(parsed.success).toBe(false);
     });
+    (0, vitest_1.describe)('Validação de Campanhas e Período (data_inicio e data_limite)', () => {
+        (0, vitest_1.it)('deve calcular status FUTURA se a data de início for posterior ao momento atual', async () => {
+            const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+            const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            const futureEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            const status = computeCampaignStatus(futureStart, futureEnd);
+            (0, vitest_1.expect)(status).toBe('FUTURE');
+        });
+        (0, vitest_1.it)('deve calcular status ATIVA se a data atual estiver dentro do intervalo', async () => {
+            const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+            const pastStart = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+            const futureEnd = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+            const status = computeCampaignStatus(pastStart, futureEnd);
+            (0, vitest_1.expect)(status).toBe('ACTIVE');
+        });
+        (0, vitest_1.it)('deve calcular status ENCERRADA (CLOSED) se a data limite for anterior à data atual', async () => {
+            const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+            const pastStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            const pastEnd = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+            const status = computeCampaignStatus(pastStart, pastEnd);
+            (0, vitest_1.expect)(status).toBe('CLOSED');
+        });
+        (0, vitest_1.it)('deve manter status CLOSED se a campanha foi encerrada manualmente', async () => {
+            const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+            const pastStart = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+            const futureEnd = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
+            const status = computeCampaignStatus(pastStart, futureEnd, 'CLOSED');
+            (0, vitest_1.expect)(status).toBe('CLOSED');
+        });
+    });
 });

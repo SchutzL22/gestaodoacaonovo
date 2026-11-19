@@ -5,7 +5,8 @@ import rateLimit from 'express-rate-limit';
 import { PublicValidationController } from '../controllers/PublicValidationController.js';
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { validate } from '../middlewares/validationMiddleware.js';
-import { DonationStatus } from '../../domain/enums/index.js';
+import { DonationStatus, CampaignStatus } from '../../domain/enums/index.js';
+import { computeCampaignStatus } from './campaignRoutes.js';
 
 const router = Router();
 const publicController = new PublicValidationController();
@@ -92,7 +93,17 @@ router.post(
       let validCampaignId: string | null = null;
       if (campaignId) {
         const camp = await prisma.campaign.findUnique({ where: { id: campaignId } }).catch(() => null);
-        if (camp) validCampaignId = campaignId;
+        if (camp) {
+          // Trava de negócio: impede doações em campanhas FUTURAS ou ENCERRADAS
+          const campStatus = computeCampaignStatus(camp.startDate, camp.endDate);
+          if (campStatus !== CampaignStatus.ACTIVE) {
+            return res.status(400).json({
+              status: 'error',
+              message: `Esta campanha não está ativa para receber doações (status: ${campStatus}).`,
+            });
+          }
+          validCampaignId = campaignId;
+        }
       }
 
       const authHash = uuidv4();

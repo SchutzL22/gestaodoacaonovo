@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ValidateCertificateUseCase } from '../../application/use-cases/certificates/ValidateCertificateUseCase.js';
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { DonationStatus, CourseStatus } from '../../domain/enums/index.js';
+import { computeCampaignStatus } from '../routes/campaignRoutes.js';
 
 export class PublicValidationController {
   private validateUseCase = new ValidateCertificateUseCase();
@@ -85,13 +86,20 @@ export class PublicValidationController {
             activeStudents: activeStudents || 485,
             familiesHelped: Math.round((totalItems || 14850) / 24) || 620,
           },
-          campaigns: campaignsList && campaignsList.length > 0 ? campaignsList : [
+          campaigns: campaignsList && campaignsList.length > 0
+            ? campaignsList.map((c) => ({
+                ...c,
+                status: computeCampaignStatus(c.startDate, c.endDate, c.status),
+              }))
+            : [
             {
               id: 'camp-inverno-2026',
               title: 'Campanha do Agasalho FMP 2026',
               description: 'Arrecadação de cobertores, casacos e calçados de frio para comunidades da Grande Florianópolis.',
               status: 'ACTIVE',
               isUrgent: true,
+              startDate: new Date('2026-04-01'),
+              endDate: new Date('2026-07-31'),
               priorityItems: [
                 { name: 'Cobertores e Mantas', urgencyLevel: 'ALTA', isUrgent: true },
                 { name: 'Casacos de Inverno', urgencyLevel: 'ALTA', isUrgent: true },
@@ -103,6 +111,8 @@ export class PublicValidationController {
               description: 'Campanha permanente para auxílio a famílias em vulnerabilidade nutricional.',
               status: 'ACTIVE',
               isUrgent: true,
+              startDate: new Date('2026-02-01'),
+              endDate: new Date('2026-11-30'),
               priorityItems: [
                 { name: 'Arroz, Feijão e Óleo', urgencyLevel: 'CRÍTICA', isUrgent: true },
                 { name: 'Leite em Pó', urgencyLevel: 'ALTA', isUrgent: true },
@@ -112,11 +122,12 @@ export class PublicValidationController {
               id: 'camp-livros-2026',
               title: 'Volta às Aulas Inclusiva & Livros',
               description: 'Doação de materiais escolares, cadernos e literatura para bibliotecas comunitárias.',
-              status: 'ACTIVE',
+              status: 'FUTURE',
               isUrgent: false,
+              startDate: new Date('2026-08-01'),
+              endDate: new Date('2026-10-31'),
               priorityItems: [
-                { name: 'Cadernos Universitários', urgencyLevel: 'NORMAL', isUrgent: false },
-                { name: 'Kits de Canetas e Lápis', urgencyLevel: 'NORMAL', isUrgent: false },
+                { name: 'Cadernos e Livros', urgencyLevel: 'NORMAL', isUrgent: false },
               ],
             },
           ],

@@ -143,7 +143,7 @@ model Campaign {
   title           String
   description     String
   status          CampaignStatus @default(ACTIVE)
-  startDate       DateTime?      @map("start_date")
+  startDate       DateTime       @default(now()) @map("start_date")
   endDate         DateTime?      @map("end_date")
   hoursLimit      Float?         @map("hours_limit")
   conversionRules String?        @map("conversion_rules")

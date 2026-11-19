@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.computeCampaignStatus = computeCampaignStatus;
 const express_1 = require("express");
 const zod_1 = require("zod");
 const prisma_js_1 = require("../../infrastructure/database/prisma.js");
@@ -9,11 +10,22 @@ const validationMiddleware_js_1 = require("../middlewares/validationMiddleware.j
 const index_js_1 = require("../../domain/enums/index.js");
 const AppError_js_1 = require("../../domain/errors/AppError.js");
 const router = (0, express_1.Router)();
-const createCampaignSchema = zod_1.z.object({
+function computeCampaignStatus(startDate, endDate, currentStatus) {
+    if (currentStatus === index_js_1.CampaignStatus.CLOSED || currentStatus === 'CLOSED' || currentStatus === 'Encerrada') {
+        return index_js_1.CampaignStatus.CLOSED;
+    }
+    const now = new Date();
+    if (startDate && now < startDate)
+        return index_js_1.CampaignStatus.FUTURE;
+    if (endDate && now > endDate)
+        return index_js_1.CampaignStatus.CLOSED;
+    return index_js_1.CampaignStatus.ACTIVE;
+}
+const createCampaignSchema = zod_1.z
+    .object({
     title: zod_1.z.string().min(3, 'Título deve ter no mínimo 3 caracteres'),
     description: zod_1.z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres'),
-    status: zod_1.z.nativeEnum(index_js_1.CampaignStatus).default(index_js_1.CampaignStatus.ACTIVE),
-    startDate: zod_1.z.string().optional().nullable(),
+    startDate: zod_1.z.string().min(1, 'Data de início é obrigatória'),
     endDate: zod_1.z.string().optional().nullable(),
     hoursLimit: zod_1.z.number().positive().optional().nullable(),
     conversionRules: zod_1.z.string().optional().nullable(),
@@ -26,8 +38,37 @@ const createCampaignSchema = zod_1.z.object({
         isUrgent: zod_1.z.boolean().default(false),
     }))
         .optional(),
-});
-const updateCampaignSchema = createCampaignSchema.partial();
+})
+    .refine((data) => {
+    if (data.endDate && data.startDate) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+    }
+    return true;
+}, { message: 'A data limite deve ser igual ou posterior à data de início.', path: ['endDate'] });
+const updateCampaignSchema = zod_1.z
+    .object({
+    title: zod_1.z.string().min(3, 'Título deve ter no mínimo 3 caracteres').optional(),
+    description: zod_1.z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres').optional(),
+    startDate: zod_1.z.string().optional().nullable(),
+    endDate: zod_1.z.string().optional().nullable(),
+    hoursLimit: zod_1.z.number().positive().optional().nullable(),
+    conversionRules: zod_1.z.string().optional().nullable(),
+    isUrgent: zod_1.z.boolean().optional(),
+    priorityItems: zod_1.z
+        .array(zod_1.z.object({
+        name: zod_1.z.string().min(2),
+        goal: zod_1.z.number().positive().optional().nullable(),
+        urgencyLevel: zod_1.z.string().default('NORMAL'),
+        isUrgent: zod_1.z.boolean().default(false),
+    }))
+        .optional(),
+})
+    .refine((data) => {
+    if (data.endDate && data.startDate) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+    }
+    return true;
+}, { message: 'A data limite deve ser igual ou posterior à data de início.', path: ['endDate'] });
 const priorityItemSchema = zod_1.z.object({
     name: zod_1.z.string().min(2, 'Nome do item é obrigatório'),
     goal: zod_1.z.number().positive().optional().nullable(),
@@ -36,11 +77,8 @@ const priorityItemSchema = zod_1.z.object({
 });
 router.get('/', async (req, res, next) => {
     try {
-        const { status, urgentOnly } = req.query;
+        const { urgentOnly } = req.query;
         const where = {};
-        if (status && Object.values(index_js_1.CampaignStatus).includes(status)) {
-            where.status = status;
-        }
         if (urgentOnly === 'true') {
             where.isUrgent = true;
         }
@@ -52,7 +90,11 @@ router.get('/', async (req, res, next) => {
             },
             orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
         });
-        res.json({ status: 'success', data: { campaigns } });
+        const campaignsWithStatus = campaigns.map((c) => ({
+            ...c,
+            status: computeCampaignStatus(c.startDate, c.endDate, c.status),
+        }));
+        res.json({ status: 'success', data: { campaigns: campaignsWithStatus } });
     }
     catch (err) {
         next(err);
@@ -68,7 +110,7 @@ router.get('/items/priority', async (req, res, next) => {
             },
             include: {
                 campaign: {
-                    select: { id: true, title: true, status: true, isUrgent: true, endDate: true },
+                    select: { id: true, title: true, status: true, isUrgent: true, endDate: true, startDate: true },
                 },
             },
             orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
@@ -96,7 +138,11 @@ router.get('/:id', async (req, res, next) => {
         if (!campaign) {
             throw AppError_js_1.AppError.notFound('Campanha não encontrada.');
         }
-        res.json({ status: 'success', data: { campaign } });
+        const campaignWithStatus = {
+            ...campaign,
+            status: computeCampaignStatus(campaign.startDate, campaign.endDate, campaign.status),
+        };
+        res.json({ status: 'success', data: { campaign: campaignWithStatus } });
     }
     catch (err) {
         next(err);
@@ -105,11 +151,15 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', authMiddleware_js_1.authMiddleware, (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.COPER), (0, validationMiddleware_js_1.validate)({ body: createCampaignSchema }), async (req, res, next) => {
     try {
         const { priorityItems, startDate, endDate, ...campaignData } = req.body;
+        const parsedStartDate = new Date(startDate);
+        const parsedEndDate = endDate ? new Date(endDate) : null;
+        const autoStatus = computeCampaignStatus(parsedStartDate, parsedEndDate);
         const campaign = await prisma_js_1.prisma.campaign.create({
             data: {
                 ...campaignData,
-                startDate: startDate ? new Date(startDate) : null,
-                endDate: endDate ? new Date(endDate) : null,
+                status: autoStatus,
+                startDate: parsedStartDate,
+                endDate: parsedEndDate,
                 priorityItems: priorityItems && priorityItems.length > 0 ? {
                     create: priorityItems.map((item) => ({
                         name: item.name,
@@ -140,6 +190,10 @@ router.put('/:id', authMiddleware_js_1.authMiddleware, (0, rbacMiddleware_js_1.r
             updatePayload.startDate = startDate ? new Date(startDate) : null;
         if (endDate !== undefined)
             updatePayload.endDate = endDate ? new Date(endDate) : null;
+        const existing = await prisma_js_1.prisma.campaign.findUnique({ where: { id }, select: { startDate: true, endDate: true } });
+        const newStart = updatePayload.startDate ?? existing?.startDate;
+        const newEnd = updatePayload.endDate ?? existing?.endDate;
+        updatePayload.status = computeCampaignStatus(newStart, newEnd);
         const campaign = await prisma_js_1.prisma.campaign.update({
             where: { id },
             data: updatePayload,
@@ -150,6 +204,20 @@ router.put('/:id', authMiddleware_js_1.authMiddleware, (0, rbacMiddleware_js_1.r
             message: 'Campanha atualizada com sucesso!',
             data: { campaign },
         });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.put('/:id/encerrar', authMiddleware_js_1.authMiddleware, (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.COPER), async (req, res, next) => {
+    try {
+        const id = String(req.params.id);
+        const campaign = await prisma_js_1.prisma.campaign.update({
+            where: { id },
+            data: { status: index_js_1.CampaignStatus.CLOSED },
+            include: { priorityItems: true },
+        });
+        res.json({ status: 'success', message: 'Campanha encerrada com sucesso.', data: { campaign } });
     }
     catch (err) {
         next(err);

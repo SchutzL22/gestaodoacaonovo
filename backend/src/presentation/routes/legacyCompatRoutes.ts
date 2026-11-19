@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../infrastructure/database/prisma.js';
-import { DonationStatus, UserRole } from '../../domain/enums/index.js';
+import { DonationStatus, UserRole, CampaignStatus } from '../../domain/enums/index.js';
 import { NotificationService } from '../../application/services/NotificationService.js';
+import { computeCampaignStatus } from './campaignRoutes.js';
 import multer from 'multer';
 
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
@@ -11,19 +12,22 @@ const router = Router();
 // ESTADO EM MEMÓRIA PARA CAMPANHAS E ITENS
 // ==========================================
 interface CampanhaItem {
-  id: number;
+  id: number | string;
   nome: string;
   meta: number | string | null;
   urgencia: string;
-  campanhaId?: number;
+  campanhaId?: number | string;
 }
 
 interface Campanha {
-  id: number;
+  id: number | string;
   titulo: string;
   descricao: string;
   status: string;
+  dataInicio?: string | null;
   dataLimite: string | null;
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
   limiteHoras: number | null;
   regrasConversao: string | null;
   urgente: boolean;
@@ -93,30 +97,46 @@ router.get('/campanhas', async (req: Request, res: Response) => {
     });
     if (dbCampaigns && dbCampaigns.length > 0) {
       return res.json(
-        dbCampaigns.map((c) => ({
-          id: c.id,
-          titulo: c.title,
-          descricao: c.description,
-          status:
-            c.status === 'ACTIVE'
-              ? c.isUrgent
-                ? 'Urgente'
-                : 'Ativa'
-              : c.status === 'FUTURE'
+        dbCampaigns.map((c) => {
+          const autoStatus = computeCampaignStatus(c.startDate, c.endDate, c.status);
+          const statusText =
+            autoStatus === CampaignStatus.CLOSED
+              ? 'Encerrada'
+              : autoStatus === CampaignStatus.FUTURE
               ? 'Futura'
-              : 'Encerrada',
-          dataLimite: c.endDate ? c.endDate.toISOString().split('T')[0] : null,
-          limiteHoras: c.hoursLimit,
-          regrasConversao: c.conversionRules,
-          urgente: c.isUrgent,
-          itensPrioritarios: c.priorityItems.map((p) => ({
-            id: p.id,
-            nome: p.name,
-            meta: p.goal,
-            urgencia: p.urgencyLevel,
-            campanhaId: p.campaignId,
-          })),
-        }))
+              : c.isUrgent
+              ? 'Urgente'
+              : 'Ativa';
+          return {
+            id: c.id,
+            titulo: c.title,
+            title: c.title,
+            descricao: c.description,
+            description: c.description,
+            status: statusText,
+            statusEnum: autoStatus,
+            dataInicio: c.startDate ? c.startDate.toISOString().split('T')[0] : null,
+            dataLimite: c.endDate ? c.endDate.toISOString().split('T')[0] : null,
+            startDate: c.startDate,
+            endDate: c.endDate,
+            limiteHoras: c.hoursLimit,
+            hoursLimit: c.hoursLimit,
+            regrasConversao: c.conversionRules,
+            urgente: c.isUrgent,
+            isUrgent: c.isUrgent,
+            itensPrioritarios: c.priorityItems.map((p) => ({
+              id: p.id,
+              nome: p.name,
+              name: p.name,
+              meta: p.goal,
+              goal: p.goal,
+              urgencia: p.urgencyLevel,
+              urgencyLevel: p.urgencyLevel,
+              campanhaId: p.campaignId,
+            })),
+            priorityItems: c.priorityItems,
+          };
+        })
       );
     }
   } catch {}
@@ -131,22 +151,43 @@ router.get('/campanhas/:id', async (req: Request, res: Response) => {
       include: { priorityItems: true },
     });
     if (campaign) {
+      const autoStatus = computeCampaignStatus(campaign.startDate, campaign.endDate, campaign.status);
+      const statusText =
+        autoStatus === CampaignStatus.CLOSED
+          ? 'Encerrada'
+          : autoStatus === CampaignStatus.FUTURE
+          ? 'Futura'
+          : campaign.isUrgent
+          ? 'Urgente'
+          : 'Ativa';
       return res.json({
         id: campaign.id,
         titulo: campaign.title,
+        title: campaign.title,
         descricao: campaign.description,
-        status: campaign.status,
+        description: campaign.description,
+        status: statusText,
+        statusEnum: autoStatus,
+        dataInicio: campaign.startDate ? campaign.startDate.toISOString().split('T')[0] : null,
         dataLimite: campaign.endDate ? campaign.endDate.toISOString().split('T')[0] : null,
+        startDate: campaign.startDate,
+        endDate: campaign.endDate,
         limiteHoras: campaign.hoursLimit,
+        hoursLimit: campaign.hoursLimit,
         regrasConversao: campaign.conversionRules,
         urgente: campaign.isUrgent,
+        isUrgent: campaign.isUrgent,
         itensPrioritarios: (campaign.priorityItems || []).map((p: any) => ({
           id: p.id,
           nome: p.name,
+          name: p.name,
           meta: p.goal,
+          goal: p.goal,
           urgencia: p.urgencyLevel,
+          urgencyLevel: p.urgencyLevel,
           campanhaId: p.campaignId,
         })),
+        priorityItems: campaign.priorityItems,
       });
     }
   } catch {}
@@ -157,16 +198,74 @@ router.get('/campanhas/:id', async (req: Request, res: Response) => {
   res.json(found);
 });
 
-router.post('/campanhas', (req: Request, res: Response) => {
-  const { titulo, descricao, dataLimite, status, limiteHoras, regrasConversao, itensPrioritarios } = req.body;
-  if (!titulo) return res.status(400).json({ erro: 'Título é obrigatório.' });
+router.post('/campanhas', async (req: Request, res: Response) => {
+  const { titulo, title, descricao, description, dataInicio, startDate, dataLimite, endDate, status, limiteHoras, hoursLimit, regrasConversao, itensPrioritarios } = req.body;
+  const finalTitle = title || titulo;
+  if (!finalTitle) return res.status(400).json({ erro: 'Título é obrigatório.' });
+
+  const finalStart = startDate || dataInicio || new Date().toISOString();
+  const finalEnd = endDate || dataLimite || null;
+
+  if (finalEnd && finalStart && new Date(finalEnd) < new Date(finalStart)) {
+    return res.status(400).json({ erro: 'A data limite deve ser igual ou posterior à data de início.' });
+  }
+
+  const parsedStartDate = new Date(finalStart);
+  const parsedEndDate = finalEnd ? new Date(finalEnd) : null;
+  const autoStatus = computeCampaignStatus(parsedStartDate, parsedEndDate);
+
+  try {
+    const created = await prisma.campaign.create({
+      data: {
+        title: finalTitle,
+        description: description || descricao || '',
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        status: autoStatus,
+        hoursLimit: limiteHoras || hoursLimit ? Number(limiteHoras || hoursLimit) : null,
+        conversionRules: regrasConversao || null,
+        isUrgent: status === 'Urgente' || req.body.isUrgent === true,
+        priorityItems: Array.isArray(itensPrioritarios) && itensPrioritarios.length > 0 ? {
+          create: itensPrioritarios.filter((i: any) => i.nome || i.name).map((i: any) => ({
+            name: i.nome || i.name,
+            goal: i.meta || i.goal ? Number(i.meta || i.goal) : null,
+            urgencyLevel: i.urgencia || i.urgencyLevel || 'NORMAL',
+            isUrgent: i.urgencia === 'ALTA' || i.urgencyLevel === 'ALTA' || Boolean(i.isUrgent),
+          })),
+        } : undefined,
+      },
+      include: { priorityItems: true },
+    });
+
+    const statusText = autoStatus === CampaignStatus.CLOSED ? 'Encerrada' : autoStatus === CampaignStatus.FUTURE ? 'Futura' : created.isUrgent ? 'Urgente' : 'Ativa';
+    return res.status(201).json({
+      id: created.id,
+      titulo: created.title,
+      title: created.title,
+      descricao: created.description,
+      description: created.description,
+      status: statusText,
+      statusEnum: autoStatus,
+      dataInicio: created.startDate ? created.startDate.toISOString().split('T')[0] : null,
+      dataLimite: created.endDate ? created.endDate.toISOString().split('T')[0] : null,
+      startDate: created.startDate,
+      endDate: created.endDate,
+      limiteHoras: created.hoursLimit,
+      hoursLimit: created.hoursLimit,
+      urgente: created.isUrgent,
+      isUrgent: created.isUrgent,
+      itensPrioritarios: created.priorityItems,
+      priorityItems: created.priorityItems,
+    });
+  } catch {}
 
   const nova: Campanha = {
     id: nextCampanhaId++,
-    titulo,
-    descricao: descricao || '',
-    status: status || 'Ativa',
-    dataLimite: dataLimite || null,
+    titulo: finalTitle,
+    descricao: description || descricao || '',
+    status: autoStatus === CampaignStatus.CLOSED ? 'Encerrada' : autoStatus === CampaignStatus.FUTURE ? 'Futura' : 'Ativa',
+    dataInicio: parsedStartDate.toISOString().split('T')[0],
+    dataLimite: parsedEndDate ? parsedEndDate.toISOString().split('T')[0] : null,
     limiteHoras: limiteHoras ? Number(limiteHoras) : null,
     regrasConversao: regrasConversao || null,
     urgente: status === 'Urgente',
@@ -177,8 +276,55 @@ router.post('/campanhas', (req: Request, res: Response) => {
   res.status(201).json(nova);
 });
 
-router.put('/campanhas/:id', (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+router.put('/campanhas/:id', async (req: Request, res: Response) => {
+  const paramId = String(req.params.id);
+  const { titulo, title, descricao, description, dataInicio, startDate, dataLimite, endDate, status, limiteHoras, hoursLimit } = req.body;
+
+  const finalStart = startDate || dataInicio;
+  const finalEnd = endDate || dataLimite;
+
+  if (finalEnd && finalStart && new Date(finalEnd) < new Date(finalStart)) {
+    return res.status(400).json({ erro: 'A data limite deve ser igual ou posterior à data de início.' });
+  }
+
+  try {
+    const existing = await prisma.campaign.findUnique({ where: { id: paramId } });
+    if (existing) {
+      const newStart = finalStart ? new Date(finalStart) : existing.startDate;
+      const newEnd = finalEnd !== undefined ? (finalEnd ? new Date(finalEnd) : null) : existing.endDate;
+      const autoStatus = status === 'Encerrada' ? CampaignStatus.CLOSED : computeCampaignStatus(newStart, newEnd, status);
+
+      const updated = await prisma.campaign.update({
+        where: { id: paramId },
+        data: {
+          title: title || titulo || existing.title,
+          description: description || descricao || existing.description,
+          startDate: newStart,
+          endDate: newEnd,
+          status: autoStatus,
+          hoursLimit: limiteHoras !== undefined || hoursLimit !== undefined ? Number(limiteHoras || hoursLimit) : existing.hoursLimit,
+        },
+        include: { priorityItems: true },
+      });
+
+      const statusText = autoStatus === CampaignStatus.CLOSED ? 'Encerrada' : autoStatus === CampaignStatus.FUTURE ? 'Futura' : updated.isUrgent ? 'Urgente' : 'Ativa';
+      return res.json({
+        id: updated.id,
+        titulo: updated.title,
+        title: updated.title,
+        descricao: updated.description,
+        status: statusText,
+        dataInicio: updated.startDate ? updated.startDate.toISOString().split('T')[0] : null,
+        dataLimite: updated.endDate ? updated.endDate.toISOString().split('T')[0] : null,
+        startDate: updated.startDate,
+        endDate: updated.endDate,
+        limiteHoras: updated.hoursLimit,
+        itensPrioritarios: updated.priorityItems,
+      });
+    }
+  } catch {}
+
+  const id = Number(paramId);
   const idx = campanhasState.findIndex((c) => c.id === id);
   if (idx === -1) return res.status(404).json({ erro: 'Campanha não encontrada.' });
 
@@ -192,8 +338,21 @@ router.put('/campanhas/:id', (req: Request, res: Response) => {
   res.json(updated);
 });
 
-router.put('/campanhas/:id/encerrar', (req: Request, res: Response) => {
-  const id = Number(req.params.id);
+router.put('/campanhas/:id/encerrar', async (req: Request, res: Response) => {
+  const paramId = String(req.params.id);
+  try {
+    const existing = await prisma.campaign.findUnique({ where: { id: paramId } });
+    if (existing) {
+      const updated = await prisma.campaign.update({
+        where: { id: paramId },
+        data: { status: CampaignStatus.CLOSED },
+        include: { priorityItems: true },
+      });
+      return res.json({ ...updated, status: 'Encerrada', statusEnum: CampaignStatus.CLOSED });
+    }
+  } catch {}
+
+  const id = Number(paramId);
   const idx = campanhasState.findIndex((c) => c.id === id);
   if (idx === -1) return res.status(404).json({ erro: 'Campanha não encontrada.' });
 
@@ -406,6 +565,21 @@ router.post('/doacoes', upload.single('foto'), async (req: Request, res: Respons
     const matricula = req.body.matricula ? String(req.body.matricula) : '';
     const tipoItem = req.body.tipoItem ? String(req.body.tipoItem) : 'Doação Solidária';
     const quantidade = Number(req.body.quantidade) || 1;
+    const campanhaId = req.body.campanhaId || req.body.campaignId ? String(req.body.campanhaId || req.body.campaignId) : undefined;
+
+    let validCampaignId: string | null = null;
+    if (campanhaId) {
+      const camp = await prisma.campaign.findUnique({ where: { id: campanhaId } });
+      if (camp) {
+        const autoStatus = computeCampaignStatus(camp.startDate, camp.endDate, camp.status);
+        if (autoStatus !== CampaignStatus.ACTIVE) {
+          return res.status(400).json({
+            erro: `Não é possível registrar doações para campanhas com status FUTURA ou ENCERRADA (status atual: ${autoStatus === CampaignStatus.FUTURE ? 'Futura' : 'Encerrada'}).`,
+          });
+        }
+        validCampaignId = camp.id;
+      }
+    }
 
     let targetUserId = alunoId;
     if (!targetUserId && matricula) {
@@ -428,6 +602,7 @@ router.post('/doacoes', upload.single('foto'), async (req: Request, res: Respons
       data: {
         userId: targetUserId,
         status: DonationStatus.PENDING,
+        campaignId: validCampaignId,
         hoursEarned: 0,
         items: {
           create: [
@@ -443,6 +618,7 @@ router.post('/doacoes', upload.single('foto'), async (req: Request, res: Respons
       include: {
         items: true,
         user: { select: { name: true, cpf: true, email: true } },
+        campaign: { select: { id: true, title: true } },
       },
     });
 
@@ -452,6 +628,7 @@ router.post('/doacoes', upload.single('foto'), async (req: Request, res: Respons
       matricula: donation.user.cpf,
       item: donation.items[0]?.description,
       quantidade: donation.items[0]?.quantity,
+      campanha: donation.campaign?.title || null,
       status: 'Pendente',
       data: new Date().toLocaleDateString('pt-BR'),
     });

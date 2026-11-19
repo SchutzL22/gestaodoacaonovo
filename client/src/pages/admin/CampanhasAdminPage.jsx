@@ -8,8 +8,25 @@ import {
 } from '../../services/api';
 import toast from 'react-hot-toast';
 
+/** Formata ISO string para YYYY-MM-DD (valor de input[type=date]) */
+function toDateInput(dateStr) {
+  if (!dateStr) return '';
+  try { return new Date(dateStr).toISOString().split('T')[0]; } catch { return ''; }
+}
+
+/** Formata ISO string para DD/MM/AAAA (exibição) */
+function fmt(dateStr) {
+  if (!dateStr) return '—';
+  try { return new Date(dateStr).toLocaleDateString('pt-BR', { timeZone: 'UTC' }); } catch { return dateStr; }
+}
+
 const STATUS_BADGE = {
+  'ACTIVE':    <span className="badge badge-success">Ativa</span>,
+  'FUTURE':    <span className="badge" style={{ background: 'var(--blue-soft,#1e3a5f)', color: '#7dd3fc' }}>Futura</span>,
+  'CLOSED':    <span className="badge badge-muted">Encerrada</span>,
+  // legado
   'Ativa':     <span className="badge badge-success">Ativa</span>,
+  'Futura':    <span className="badge" style={{ background: 'var(--blue-soft,#1e3a5f)', color: '#7dd3fc' }}>Futura</span>,
   'Urgente':   <span className="badge badge-danger">Urgente</span>,
   'Encerrada': <span className="badge badge-muted">Encerrada</span>,
 };
@@ -45,14 +62,20 @@ export default function CampanhasAdminPage() {
   const [loading, setLoading] = useState(true);
   const [editando, setEditando] = useState(null);
 
-  const [novaForm, setNovaForm] = useState({ titulo: '', dataLimite: '', descricao: '', itens: [] });
+  const NOVA_FORM_DEFAULT = { titulo: '', dataInicio: '', dataLimite: '', descricao: '', limiteHoras: '', itens: [] };
+  const [novaForm, setNovaForm] = useState(NOVA_FORM_DEFAULT);
   const [editForm, setEditForm] = useState(null);
 
   useEffect(() => { carregar(); }, []);
 
   async function carregar() {
     setLoading(true);
-    try { setCampanhas(await listarCampanhas()); }
+    try {
+      const data = await listarCampanhas();
+      // A API pode retornar array ou { campaigns: [...] }
+      const list = Array.isArray(data) ? data : (data?.campaigns || data?.data?.campaigns || []);
+      setCampanhas(list);
+    }
     catch (err) { toast.error('Erro ao carregar campanhas.'); }
     finally { setLoading(false); }
   }
@@ -60,44 +83,89 @@ export default function CampanhasAdminPage() {
   async function handleCriar(e) {
     e.preventDefault();
     if (!novaForm.titulo) { toast.error('Título é obrigatório.'); return; }
+    if (!novaForm.dataInicio) { toast.error('Data de início é obrigatória.'); return; }
+    if (novaForm.dataLimite && novaForm.dataLimite < novaForm.dataInicio) {
+      toast.error('A data limite deve ser igual ou posterior à data de início.');
+      return;
+    }
     try {
-      const nova = await criarCampanha({
-        titulo: novaForm.titulo,
-        descricao: novaForm.descricao,
-        dataLimite: novaForm.dataLimite || null,
-        status: 'Ativa',
-        itensPrioritarios: novaForm.itens
-      });
+      const payload = {
+        title: novaForm.titulo,
+        description: novaForm.descricao,
+        startDate: novaForm.dataInicio,
+        endDate: novaForm.dataLimite || null,
+        hoursLimit: novaForm.limiteHoras ? parseFloat(novaForm.limiteHoras) : null,
+        priorityItems: novaForm.itens.filter(i => i.nome).map(i => ({
+          name: i.nome,
+          goal: i.meta ? parseFloat(i.meta) : null,
+          urgencyLevel: i.urgencia || 'NORMAL',
+          isUrgent: i.urgencia === 'ALTA',
+        })),
+      };
+      const res = await criarCampanha(payload);
+      const nova = res?.data?.campaign || res?.campaign || res;
       setCampanhas(cs => [nova, ...cs]);
-      setNovaForm({ titulo: '', dataLimite: '', descricao: '', itens: [] });
+      setNovaForm(NOVA_FORM_DEFAULT);
       toast.success('Campanha criada!');
-    } catch (err) { toast.error(err?.response?.data?.erro || 'Erro ao criar campanha.'); }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data?.erro || 'Erro ao criar campanha.';
+      toast.error(msg);
+    }
   }
 
   function abrirEditar(c) {
     setEditando(c);
-    setEditForm({ titulo: c.titulo, dataLimite: c.dataLimite || '', descricao: c.descricao, status: c.status, limiteHoras: c.limiteHoras || '', itens: [...(c.itensPrioritarios || [])] });
+    setEditForm({
+      titulo: c.title || c.titulo || '',
+      dataInicio: toDateInput(c.startDate || c.dataInicio),
+      dataLimite: toDateInput(c.endDate || c.dataLimite),
+      descricao: c.description || c.descricao || '',
+      limiteHoras: c.hoursLimit || c.limiteHoras || '',
+      itens: (c.priorityItems || c.itensPrioritarios || []).map(i => ({
+        nome: i.name || i.nome || '',
+        meta: i.goal || i.meta || '',
+        urgencia: i.urgencyLevel || i.urgencia || 'NORMAL',
+      })),
+    });
   }
 
   async function handleAtualizar(e) {
     e.preventDefault();
+    if (editForm.dataLimite && editForm.dataInicio && editForm.dataLimite < editForm.dataInicio) {
+      toast.error('A data limite deve ser igual ou posterior à data de início.');
+      return;
+    }
     try {
-      const updated = await atualizarCampanha(editando.id, {
-        titulo: editForm.titulo, descricao: editForm.descricao, dataLimite: editForm.dataLimite || null,
-        status: editForm.status, limiteHoras: editForm.limiteHoras || null,
-        itensPrioritarios: editForm.itens
-      });
-      setCampanhas(cs => cs.map(c => c.id === editando.id ? updated : c));
+      const payload = {
+        title: editForm.titulo,
+        description: editForm.descricao,
+        startDate: editForm.dataInicio || undefined,
+        endDate: editForm.dataLimite || null,
+        hoursLimit: editForm.limiteHoras ? parseFloat(editForm.limiteHoras) : null,
+        priorityItems: editForm.itens.filter(i => i.nome).map(i => ({
+          name: i.nome,
+          goal: i.meta ? parseFloat(i.meta) : null,
+          urgencyLevel: i.urgencia || 'NORMAL',
+          isUrgent: i.urgencia === 'ALTA',
+        })),
+      };
+      const res = await atualizarCampanha(editando.id, payload);
+      const updated = res?.data?.campaign || res?.campaign || res;
+      setCampanhas(cs => cs.map(c => c.id === editando.id ? { ...c, ...updated } : c));
       setEditando(null);
       toast.success('Campanha atualizada!');
-    } catch (err) { toast.error(err?.response?.data?.erro || 'Erro ao atualizar.'); }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data?.erro || 'Erro ao atualizar.';
+      toast.error(msg);
+    }
   }
 
   async function handleEncerrar(id) {
     if (!window.confirm('Encerrar esta campanha?')) return;
     try {
-      const updated = await encerrarCampanha(id);
-      setCampanhas(cs => cs.map(c => c.id === id ? updated : c));
+      const res = await encerrarCampanha(id);
+      const updated = res?.data?.campaign || res?.campaign || res;
+      setCampanhas(cs => cs.map(c => c.id === id ? { ...c, status: 'CLOSED', ...updated } : c));
       toast.success('Campanha encerrada.');
     } catch (err) { toast.error('Erro ao encerrar.'); }
   }
@@ -114,11 +182,9 @@ export default function CampanhasAdminPage() {
   function addItemNova() {
     setNovaForm(f => ({ ...f, itens: [...f.itens, { nome: '', meta: '', urgencia: 'NORMAL' }] }));
   }
-
   function updateItemNova(idx, item) {
     setNovaForm(f => ({ ...f, itens: f.itens.map((it, i) => i === idx ? item : it) }));
   }
-
   function removeItemNova(idx) {
     setNovaForm(f => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }));
   }
@@ -136,9 +202,20 @@ export default function CampanhasAdminPage() {
                 value={novaForm.titulo} onChange={e => setNovaForm(f => ({ ...f, titulo: e.target.value }))} required />
             </div>
             <div className="form-group">
+              <label>Data de Início *</label>
+              <input type="date" value={novaForm.dataInicio} required
+                onChange={e => setNovaForm(f => ({ ...f, dataInicio: e.target.value }))} />
+            </div>
+            <div className="form-group">
               <label>Data Limite (opcional)</label>
               <input type="date" value={novaForm.dataLimite}
+                min={novaForm.dataInicio || undefined}
                 onChange={e => setNovaForm(f => ({ ...f, dataLimite: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label>Limite de Horas</label>
+              <input type="number" min="0" step="0.5" value={novaForm.limiteHoras}
+                onChange={e => setNovaForm(f => ({ ...f, limiteHoras: e.target.value }))} />
             </div>
           </div>
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
@@ -183,53 +260,64 @@ export default function CampanhasAdminPage() {
           {campanhas.length === 0 && (
             <div className="empty-state"><p>Nenhuma campanha cadastrada.</p></div>
           )}
-          {campanhas.map(c => (
-            <div key={c.id} className={`campaign-card ${c.urgente ? 'urgente' : ''}`}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                <h4 className="campaign-card-title">{c.titulo}</h4>
-                {STATUS_BADGE[c.status] || <span className="badge badge-muted">{c.status}</span>}
-              </div>
-              {c.descricao && <p className="campaign-card-desc">{c.descricao}</p>}
-              {c.dataLimite && (
-                <p className="text-muted">📅 Limite: {c.dataLimite}</p>
-              )}
-              {c.itensPrioritarios?.length > 0 && (
-                <div style={{ marginTop: '0.5rem' }}>
-                  <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                    <FontAwesomeIcon icon={faStar} /> Itens Prioritários:
-                  </p>
-                  {c.itensPrioritarios.map((item, i) => (
-                    <span key={i} style={{ marginRight: '0.4rem', display: 'inline-block', marginBottom: '0.2rem' }}>
-                      {URGENCIA_BADGE[item.urgencia]} {item.nome} {item.meta ? `(meta: ${item.meta})` : ''}
-                    </span>
-                  ))}
+          {campanhas.map(c => {
+            const titulo = c.title || c.titulo || '(sem título)';
+            const descricao = c.description || c.descricao;
+            const startDate = c.startDate || c.dataInicio;
+            const endDate = c.endDate || c.dataLimite;
+            const priorityItems = c.priorityItems || c.itensPrioritarios || [];
+            return (
+              <div key={c.id} className={`campaign-card ${c.isUrgent || c.urgente ? 'urgente' : ''}`}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <h4 className="campaign-card-title">{titulo}</h4>
+                  {STATUS_BADGE[c.status] || <span className="badge badge-muted">{c.status}</span>}
                 </div>
-              )}
-              <div className="campaign-card-footer">
-                <div className="campaign-card-actions">
-                  <button className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
-                    onClick={() => abrirEditar(c)}>
-                    <FontAwesomeIcon icon={faPenToSquare} /> Editar
-                  </button>
-                  {c.status !== 'Encerrada' && (
-                    <button className="btn-danger" onClick={() => handleEncerrar(c.id)}>
-                      Encerrar
+                {descricao && <p className="campaign-card-desc">{descricao}</p>}
+                <p className="text-muted" style={{ fontSize: '0.82rem', marginTop: '0.3rem' }}>
+                  📅 De {fmt(startDate)} até {endDate ? fmt(endDate) : 'em aberto'}
+                </p>
+                {c.hoursLimit && (
+                  <p className="text-muted" style={{ fontSize: '0.82rem' }}>⏱ Limite: {c.hoursLimit}h</p>
+                )}
+                {priorityItems.length > 0 && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                      <FontAwesomeIcon icon={faStar} /> Itens Prioritários:
+                    </p>
+                    {priorityItems.map((item, i) => (
+                      <span key={i} style={{ marginRight: '0.4rem', display: 'inline-block', marginBottom: '0.2rem' }}>
+                        {URGENCIA_BADGE[item.urgencyLevel || item.urgencia] || null} {item.name || item.nome}{' '}
+                        {(item.goal || item.meta) ? `(meta: ${item.goal || item.meta})` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="campaign-card-footer">
+                  <div className="campaign-card-actions">
+                    <button className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem' }}
+                      onClick={() => abrirEditar(c)}>
+                      <FontAwesomeIcon icon={faPenToSquare} /> Editar
                     </button>
-                  )}
-                  <button className="btn-danger" onClick={() => handleDeletar(c.id)}>
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
+                    {c.status !== 'CLOSED' && c.status !== 'Encerrada' && (
+                      <button className="btn-danger" onClick={() => handleEncerrar(c.id)}>
+                        Encerrar
+                      </button>
+                    )}
+                    <button className="btn-danger" onClick={() => handleDeletar(c.id)}>
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* ── MODAL EDITAR CAMPANHA ── */}
       {editando && editForm && (
         <div className="modal-overlay" onClick={() => setEditando(null)}>
-          <div className="modal-box" style={{ maxWidth: 600 }} onClick={e => e.stopPropagation()}>
+          <div className="modal-box" style={{ maxWidth: 620 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3><FontAwesomeIcon icon={faPenToSquare} /> Editar Campanha</h3>
               <button className="modal-close" onClick={() => setEditando(null)}>
@@ -244,18 +332,15 @@ export default function CampanhasAdminPage() {
                     onChange={e => setEditForm(f => ({ ...f, titulo: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label>Data Limite</label>
-                  <input type="date" value={editForm.dataLimite}
-                    onChange={e => setEditForm(f => ({ ...f, dataLimite: e.target.value }))} />
+                  <label>Data de Início</label>
+                  <input type="date" value={editForm.dataInicio}
+                    onChange={e => setEditForm(f => ({ ...f, dataInicio: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label>Status</label>
-                  <select value={editForm.status}
-                    onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}>
-                    <option value="Ativa">Ativa</option>
-                    <option value="Encerrada">Encerrada</option>
-                    <option value="Urgente">Urgente</option>
-                  </select>
+                  <label>Data Limite</label>
+                  <input type="date" value={editForm.dataLimite}
+                    min={editForm.dataInicio || undefined}
+                    onChange={e => setEditForm(f => ({ ...f, dataLimite: e.target.value }))} />
                 </div>
                 <div className="form-group">
                   <label>Limite de Horas</label>

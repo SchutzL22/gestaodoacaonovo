@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import fmpLogo from '../assets/fmplogo.png';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -260,7 +260,7 @@ export default function LandingPage() {
       donorCpf: '',
       donorPhone: '',
       donorEmail: '',
-      campaignId: campaignId || (campaignsList[0] ? campaignsList[0].id : ''),
+      campaignId: campaignId || (campaignsList.find(c => c.status === 'ACTIVE' || c.status === 'Ativa')?.id || ''),
       itemDescription: '',
       itemCategory: 'ALIMENTOS',
       itemQuantity: 1,
@@ -674,15 +674,26 @@ export default function LandingPage() {
                 <div>
                   <div className="project-top">
                     <span className="project-category">Campanha Universitária</span>
-                    {c.isUrgent && (
-                      <span className="project-status status-urgent">Prioritário / Urgente</span>
-                    )}
-                    {!c.isUrgent && (
-                      <span className="project-status status-active">Arrecadação Ativa</span>
+                    {c.status === 'FUTURE' || c.status === 'Futura' ? (
+                      <span className="project-status" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}>Futura</span>
+                    ) : c.status === 'CLOSED' || c.status === 'Encerrada' ? (
+                      <span className="project-status" style={{ background: 'rgba(100, 116, 139, 0.2)', color: '#94a3b8', border: '1px solid rgba(100, 116, 139, 0.3)' }}>Encerrada</span>
+                    ) : c.isUrgent ? (
+                      <span className="project-status status-urgent">Ativa • Urgente</span>
+                    ) : (
+                      <span className="project-status status-active">Ativa</span>
                     )}
                   </div>
                   <h3>{c.title}</h3>
                   <p>{c.description}</p>
+                  {/* Período */}
+                  {(c.startDate || c.endDate) && (
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                      {String.fromCodePoint(128197)} De {c.startDate ? new Date(c.startDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'}
+                      {' '} até {' '}
+                      {c.endDate ? new Date(c.endDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'em aberto'}
+                    </p>
+                  )}
 
                   {/* Itens Prioritários */}
                   <div className="priority-items-strip">
@@ -715,14 +726,36 @@ export default function LandingPage() {
                 </div>
 
                 <div className="project-footer-actions">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenDonateModal(c.id)}
-                    className="btn-card-donate"
-                  >
-                    <HeartHandshake size={16} />
-                    <span>Doar para esta Campanha</span>
-                  </button>
+                  {c.status === 'FUTURE' || c.status === 'Futura' ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="btn-card-donate"
+                      style={{ opacity: 0.6, cursor: 'not-allowed', background: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd' }}
+                    >
+                      <HeartHandshake size={16} />
+                      <span>Inicia em Breve</span>
+                    </button>
+                  ) : c.status === 'CLOSED' || c.status === 'Encerrada' ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="btn-card-donate"
+                      style={{ opacity: 0.5, cursor: 'not-allowed', background: 'rgba(100, 116, 139, 0.2)', color: '#94a3b8' }}
+                    >
+                      <HeartHandshake size={16} />
+                      <span>Campanha Encerrada</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDonateModal(c.id)}
+                      className="btn-card-donate"
+                    >
+                      <HeartHandshake size={16} />
+                      <span>Doar para esta Campanha</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

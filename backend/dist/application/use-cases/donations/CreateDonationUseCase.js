@@ -4,8 +4,26 @@ exports.CreateDonationUseCase = void 0;
 const uuid_1 = require("uuid");
 const prisma_js_1 = require("../../../infrastructure/database/prisma.js");
 const index_js_1 = require("../../../domain/enums/index.js");
+const AppError_js_1 = require("../../../domain/errors/AppError.js");
 class CreateDonationUseCase {
     async execute(userId, data) {
+        if (data.campaignId) {
+            const campaign = await prisma_js_1.prisma.campaign.findUnique({
+                where: { id: data.campaignId },
+            });
+            if (!campaign) {
+                throw AppError_js_1.AppError.notFound('Campanha não encontrada.');
+            }
+            const now = new Date();
+            const isFuture = campaign.startDate && now < campaign.startDate;
+            const isExpired = campaign.endDate && now > campaign.endDate;
+            if (campaign.status === index_js_1.CampaignStatus.CLOSED ||
+                campaign.status === index_js_1.CampaignStatus.FUTURE ||
+                isFuture ||
+                isExpired) {
+                throw AppError_js_1.AppError.badRequest('Não é possível registrar doações para campanhas com status FUTURA ou ENCERRADA.');
+            }
+        }
         const authHash = (0, uuid_1.v4)();
         const donation = await prisma_js_1.prisma.donation.create({
             data: {
