@@ -1,10 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import LandingPage from './pages/LandingPage';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
 import LoginPage from './pages/LoginPage';
 import AppLayout from './components/layout/AppLayout';
-import DashboardAdminPage from './pages/admin/DashboardAdminPage';
 import RegistrarDoacaoPage from './pages/admin/RegistrarDoacaoPage';
 import ValidarDoacoesPage from './pages/admin/ValidarDoacoesPage';
 import CampanhasAdminPage from './pages/admin/CampanhasAdminPage';
@@ -15,40 +15,24 @@ import CampanhasAlunoPage from './pages/aluno/CampanhasAlunoPage';
 import HistoricoAlunoPage from './pages/aluno/HistoricoAlunoPage';
 import EditarPerfilPage from './pages/shared/EditarPerfilPage';
 import ValidateCertificatePage from './pages/ValidateCertificatePage';
-import SocialImpactDashboard from './pages/SocialImpactDashboard';
-import ChamadaPage from './pages/professor/ChamadaPage';
-import GestaoCursosPage from './pages/admin/GestaoCursosPage';
+import { paginaInicial, perfil } from './context/perfis';
 import CursosAlunoPage from './pages/aluno/CursosAlunoPage';
-import DiarioClassePage from './pages/professor/DiarioClassePage';
 
-function PrivateRoute({ children, role }) {
+const DiarioClassePage = lazy(() => import('./pages/professor/DiarioClassePage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const SocialImpactDashboard = lazy(() => import('./pages/SocialImpactDashboard'));
+const DashboardAdminPage = lazy(() => import('./pages/admin/DashboardAdminPage'));
+const GestaoCursosPage = lazy(() => import('./pages/admin/GestaoCursosPage'));
+
+function PrivateRoute({ children, roles }) {
   const { usuario } = useAuth();
   if (!usuario) return <Navigate to="/login" replace />;
-  if (role && usuario.tipo !== role && usuario.role !== role) {
-    const defaultRoute =
-      usuario.role === 'PROFESSOR'
-        ? '/diario-classe'
-        : usuario.role === 'EMPRESARIO'
-        ? '/painel-impacto'
-        : usuario.tipo === 'admin' || usuario.role === 'COPER'
-        ? '/dashboard'
-        : '/meu-painel';
-    return <Navigate to={defaultRoute} replace />;
-  }
-  return children;
+  if (roles && !roles.includes(perfil(usuario))) return <Navigate to={paginaInicial(usuario)} replace />;
+  return children || <Outlet />;
 }
 
 function AppRoutes() {
   const { usuario } = useAuth();
-
-  const getHomeRoute = () => {
-    if (!usuario) return '/login';
-    if (usuario.role === 'PROFESSOR') return '/diario-classe';
-    if (usuario.role === 'EMPRESARIO') return '/painel-impacto';
-    if (usuario.tipo === 'admin' || usuario.role === 'COPER') return '/dashboard';
-    return '/meu-painel';
-  };
-
   return (
     <Routes>
       {/* 🌐 Rota Pública Principal — Landing Page Institucional & Dados de Impacto */}
@@ -64,35 +48,36 @@ function AppRoutes() {
       <Route
         path="/login"
         element={
-          usuario ? <Navigate to={getHomeRoute()} replace /> : <LoginPage />
+          usuario ? <Navigate to={paginaInicial(usuario)} replace /> : <LoginPage />
         }
       />
 
       {/* 🛡️ Rotas Autenticadas no Layout Principal (AppLayout) */}
       <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
-        {/* Admin / COPER */}
-        <Route path="/dashboard" element={<PrivateRoute><DashboardAdminPage /></PrivateRoute>} />
-        <Route path="/gestao-cursos" element={<PrivateRoute><GestaoCursosPage /></PrivateRoute>} />
-        <Route path="/registrar-doacao" element={<PrivateRoute><RegistrarDoacaoPage /></PrivateRoute>} />
-        <Route path="/validar-doacoes" element={<PrivateRoute><ValidarDoacoesPage /></PrivateRoute>} />
-        <Route path="/campanhas" element={<PrivateRoute><CampanhasAdminPage /></PrivateRoute>} />
-        <Route path="/itens-prioritarios" element={<PrivateRoute><ItensPrioritariosPage /></PrivateRoute>} />
-        <Route path="/relatorios" element={<PrivateRoute><RelatoriosPage /></PrivateRoute>} />
-        <Route path="/painel-impacto" element={<SocialImpactDashboard embedded />} />
-
-        {/* Professor - Diário de Classe Digital (Chamada Online, Avaliações A1/A2/A3 e Certificação) */}
-        <Route path="/diario-classe" element={<DiarioClassePage />} />
-        <Route path="/chamada" element={<DiarioClassePage />} />
-        <Route path="/professor/chamada" element={<DiarioClassePage />} />
-
-        {/* Aluno - Portal Acadêmico & Catálogo de Vagas FIFO */}
-        <Route path="/meu-painel" element={<DashboardAlunoPage />} />
-        <Route path="/meus-cursos" element={<CursosAlunoPage />} />
+        <Route element={<PrivateRoute roles={['COPER']} />}>
+          <Route path="/dashboard" element={<DashboardAdminPage />} />
+          <Route path="/gestao-cursos" element={<GestaoCursosPage />} />
+          <Route path="/validar-doacoes" element={<ValidarDoacoesPage />} />
+          <Route path="/campanhas" element={<CampanhasAdminPage />} />
+          <Route path="/itens-prioritarios" element={<ItensPrioritariosPage />} />
+          <Route path="/relatorios" element={<RelatoriosPage />} />
+        </Route>
+        <Route element={<PrivateRoute roles={['EMPRESARIO', 'COPER']} />}>
+          <Route path="/painel-impacto" element={<SocialImpactDashboard embedded />} />
+        </Route>
+        <Route element={<PrivateRoute roles={['PROFESSOR', 'COPER']} />}>
+          <Route path="/diario-classe" element={<DiarioClassePage />} />
+          <Route path="/chamada" element={<DiarioClassePage />} />
+          <Route path="/professor/chamada" element={<DiarioClassePage />} />
+        </Route>
+        <Route element={<PrivateRoute roles={['ALUNO']} />}>
+          <Route path="/meu-painel" element={<DashboardAlunoPage />} />
+          <Route path="/meus-cursos" element={<CursosAlunoPage />} />
+          <Route path="/historico" element={<HistoricoAlunoPage />} />
+        </Route>
         <Route path="/campanhas-ativas" element={<CampanhasAlunoPage />} />
-        <Route path="/historico" element={<HistoricoAlunoPage />} />
-
-        {/* Compartilhado */}
-        <Route path="/editar-perfil" element={<PrivateRoute><EditarPerfilPage /></PrivateRoute>} />
+        <Route path="/registrar-doacao" element={<RegistrarDoacaoPage />} />
+        <Route path="/editar-perfil" element={<EditarPerfilPage />} />
       </Route>
 
       {/* Fallback */}
@@ -105,7 +90,9 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <Suspense fallback={<p role="status">Carregando página…</p>}>
+          <AppRoutes />
+        </Suspense>
         <Toaster
           position="top-right"
           toastOptions={{

@@ -14,6 +14,7 @@ router.post('/', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.ALUNO, in
 router.get('/', donationController.list);
 router.get('/my', donationController.list);
 router.get('/student/:studentId', donationController.listByStudent);
+router.get('/:id/evidence.:ext', donationController.downloadEvidence);
 router.get('/:id/pdf', donationController.downloadPdf);
 router.get('/:id', donationController.getById);
 router.patch('/:id/validate', (0, rbacMiddleware_js_1.requireRoles)(index_js_1.Role.COPER), (0, validationMiddleware_js_1.validate)({ body: donation_dto_js_1.validateDonationSchema }), donationController.validate);

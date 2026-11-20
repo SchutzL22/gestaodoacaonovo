@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TokenService = void 0;
+const node_crypto_1 = require("node:crypto");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 class TokenService {
     static ACCESS_SECRET = process.env.JWT_SECRET || 'coper_default_jwt_secret_dev';
@@ -17,6 +18,7 @@ class TokenService {
     }
     static generateRefreshToken(payload) {
         return jsonwebtoken_1.default.sign(payload, this.REFRESH_SECRET, {
+            jwtid: (0, node_crypto_1.randomUUID)(),
             expiresIn: this.REFRESH_EXPIRES_IN,
         });
     }

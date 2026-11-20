@@ -94,6 +94,7 @@ export declare const validateDonationSchema: z.ZodEffects<z.ZodObject<{
 }>;
 export type ValidateDonationInput = z.infer<typeof validateDonationSchema>;
 export declare const reportFilterSchema: z.ZodObject<{
+    campaignId: z.ZodOptional<z.ZodString>;
     startDate: z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodOptional<z.ZodString>]>;
     endDate: z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodOptional<z.ZodString>]>;
     status: z.ZodDefault<z.ZodEnum<["ALL", "PENDING", "APPROVED", "REJECTED"]>>;
@@ -105,10 +106,12 @@ export declare const reportFilterSchema: z.ZodObject<{
     limit: number;
     startDate?: string | undefined;
     endDate?: string | undefined;
+    campaignId?: string | undefined;
 }, {
     status?: "APPROVED" | "REJECTED" | "ALL" | "PENDING" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
+    campaignId?: string | undefined;
     page?: number | undefined;
     limit?: number | undefined;
 }>;

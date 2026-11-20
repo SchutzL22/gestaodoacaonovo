@@ -70,10 +70,10 @@ class DownloadCertificatePDFUseCase {
                 pdfBuffer = await PDFGeneratorService_js_1.PDFGeneratorService.generateStudentDonationPDF({
                     authHash: certificate.authHash,
                     validationUrl: certificate.validationUrl || `${frontendUrl}/validar?code=${certificate.authHash}`,
-                    userName: certificate.user.name,
+                    userName: certificate.donation?.donorName || certificate.user.name,
                     userMatricula: certificate.user.matricula,
                     userEmail: certificate.user.email,
-                    userCpf: certificate.user.cpf,
+                    userCpf: certificate.donation?.donorCpf || certificate.user.cpf,
                     items: certificate.donation?.items.map((i) => ({
                         description: i.description,
                         category: i.category,
@@ -91,9 +91,9 @@ class DownloadCertificatePDFUseCase {
                 pdfBuffer = await PDFGeneratorService_js_1.PDFGeneratorService.generateCivilOrProfessorDonationPDF({
                     authHash: certificate.authHash,
                     validationUrl: certificate.validationUrl || `${frontendUrl}/validar?code=${certificate.authHash}`,
-                    userName: certificate.user.name,
+                    userName: certificate.donation?.donorName || certificate.user.name,
                     userRole: certificate.user.role || 'CIVIL',
-                    userCpf: certificate.user.cpf,
+                    userCpf: certificate.donation?.donorCpf || certificate.user.cpf,
                     userEmail: certificate.user.email,
                     items: certificate.donation?.items.map((i) => ({
                         description: i.description,

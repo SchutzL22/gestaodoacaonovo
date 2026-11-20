@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFloppyDisk } from '@fortawesome/free-solid-svg-icons';
-import { listarCampanhas, registrarDoacao, listarUsuarios } from '../../services/api';
+import { listarCampanhas, registrarDoacao } from '../../services/api';
+import { useAuth } from '../../context/useAuth';
+import { perfil } from '../../context/perfis';
 import toast from 'react-hot-toast';
 
 export default function RegistrarDoacaoPage() {
+  const { usuario } = useAuth();
   const [campanhas, setCampanhas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -16,9 +19,9 @@ export default function RegistrarDoacaoPage() {
       .then(data => {
         const list = Array.isArray(data) ? data : (data?.campaigns || data?.data?.campaigns || []);
         // Exibe apenas campanhas ATIVAS para registrar doações (suporte a enum novo e legado)
-        setCampanhas(list.filter(c => c.status === 'ACTIVE' || c.status === 'Ativa'));
+        setCampanhas(list.filter(c => c.statusEnum === 'ACTIVE' || ['ACTIVE', 'Ativa', 'Urgente'].includes(c.status)));
       })
-      .catch(console.error);
+      .catch(() => toast.error('Erro ao carregar as campanhas.'));
   }, []);
 
   function handleChange(e) {
@@ -34,17 +37,8 @@ export default function RegistrarDoacaoPage() {
     }
     setLoading(true);
     try {
-      // Resolve matrícula → alunoId se preenchida
-      let alunoId = null;
-      if (form.matricula.trim()) {
-        const usuarios = await listarUsuarios();
-        const aluno = usuarios.find(u => u.matricula === form.matricula.trim());
-        if (!aluno) { toast.error(`Aluno não encontrado: matrícula ${form.matricula}`); setLoading(false); return; }
-        alunoId = aluno.id;
-      }
-
       const fd = new FormData();
-      if (alunoId) fd.append('alunoId', alunoId);
+      if (form.matricula.trim()) fd.append('matricula', form.matricula.trim());
       fd.append('campanhaId', form.campanhaId);
       fd.append('tipoItem', form.tipoItem);
       fd.append('quantidade', form.quantidade);
@@ -57,7 +51,7 @@ export default function RegistrarDoacaoPage() {
       // Limpa input file
       document.getElementById('evidenciaInput').value = '';
     } catch (err) {
-      toast.error(err?.response?.data?.erro || err.message || 'Erro ao registrar doação.');
+      toast.error(err?.response?.data?.message || err?.response?.data?.erro || err.message || 'Erro ao registrar doação.');
     } finally { setLoading(false); }
   }
 
@@ -67,11 +61,11 @@ export default function RegistrarDoacaoPage() {
         <h3>Registrar Nova Doação</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            <div className="form-group">
+            {perfil(usuario) === 'COPER' && <div className="form-group">
               <label>Matrícula do Aluno</label>
               <input name="matricula" type="text" placeholder="Ex: 19875"
                 value={form.matricula} onChange={handleChange} />
-            </div>
+            </div>}
             <div className="form-group">
               <label>Campanha *</label>
               <select name="campanhaId" value={form.campanhaId} onChange={handleChange} required>
@@ -105,9 +99,9 @@ export default function RegistrarDoacaoPage() {
                 value={form.localEntrega} onChange={handleChange} />
             </div>
             <div className="form-group">
-              <label>Foto / Evidência</label>
+              <label>Foto / Evidência (JPEG, PNG ou WebP, até 10 MB)</label>
               <div className="file-input-wrapper">
-                <input id="evidenciaInput" name="foto" type="file" accept="image/*"
+                <input id="evidenciaInput" name="foto" type="file" accept="image/jpeg,image/png,image/webp"
                   onChange={handleChange} />
               </div>
             </div>

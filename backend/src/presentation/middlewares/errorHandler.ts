@@ -1,3 +1,4 @@
+import { MulterError } from 'multer';
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -34,6 +35,11 @@ export function errorHandler(
       message: 'Falha na validação dos dados de entrada.',
       details: formattedErrors,
     });
+    return;
+  }
+
+  if (err instanceof MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    res.status(413).json({ status: 'error', message: 'A foto deve ter até 10 MB.' });
     return;
   }
 

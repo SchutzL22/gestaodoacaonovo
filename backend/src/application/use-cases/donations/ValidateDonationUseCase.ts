@@ -8,49 +8,52 @@ import { NotificationService } from '../../services/NotificationService.js';
 
 export class ValidateDonationUseCase {
   async execute(donationId: string, validatorId: string, data: ValidateDonationInput) {
-    const donation = await prisma.donation.findUnique({
-      where: { id: donationId },
-      include: {
-        user: true,
-        items: true,
-      },
-    });
-
-    if (!donation) {
-      throw AppError.notFound('Doação não encontrada.');
-    }
-
-    if (donation.status !== DonationStatus.PENDING) {
-      throw AppError.badRequest('Esta doação já foi avaliada anteriormente.');
-    }
-
-    // Regra de Negócio: Conversão em horas apenas para perfil ALUNO
-    const isStudent = donation.user.role === UserRole.ALUNO;
-
-    // Trava de segurança: impede aprovar horas para aluno com matrícula inativa
-    if (data.status === DonationStatus.APPROVED && isStudent && !donation.user.isActive) {
-      throw AppError.badRequest(
-        'Trava de validação: Não é permitido aprovar horas para aluno com matrícula inativa no sistema.'
-      );
-    }
-
-    // Apenas ALUNO acumula horas complementares; PROFESSOR, CIVIL, EMPRESARIO não acumulam
-    let computedHours = 0;
-    if (data.status === DonationStatus.APPROVED && isStudent) {
-      computedHours = data.hoursEarned || 0;
-
-      // Respeita limite semestral caso configurado
-      if (donation.user.semesterHoursLimit && donation.user.semesterHoursLimit > 0) {
-        const remainingHours = Math.max(0, donation.user.semesterHoursLimit - donation.user.totalHoursEarned);
-        if (computedHours > remainingHours) {
-          computedHours = remainingHours;
-        }
-      }
-    }
-
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
     const result = await prisma.$transaction(async (tx) => {
+      // Serializa homologações do mesmo doador antes de consultar seu saldo.
+      await tx.$queryRaw`SELECT u.id FROM users u JOIN donations d ON d.user_id = u.id
+        WHERE d.id = ${donationId} FOR UPDATE OF u, d`;
+      const donation = await tx.donation.findUnique({
+        where: { id: donationId },
+        include: {
+          user: true,
+          items: true,
+        },
+      });
+
+      if (!donation) {
+        throw AppError.notFound('Doação não encontrada.');
+      }
+
+      if (donation.status !== DonationStatus.PENDING) {
+        throw AppError.badRequest('Esta doação já foi avaliada anteriormente.');
+      }
+
+      // Regra de Negócio: Conversão em horas apenas para perfil ALUNO
+      const isStudent = donation.user.role === UserRole.ALUNO;
+
+      // Trava de segurança: impede aprovar horas para aluno com matrícula inativa
+      if (data.status === DonationStatus.APPROVED && isStudent && !donation.user.isActive) {
+        throw AppError.badRequest(
+          'Trava de validação: Não é permitido aprovar horas para aluno com matrícula inativa no sistema.'
+        );
+      }
+
+      // Apenas ALUNO acumula horas complementares; PROFESSOR, CIVIL, EMPRESARIO não acumulam
+      let computedHours = 0;
+      if (data.status === DonationStatus.APPROVED && isStudent) {
+        computedHours = data.hoursEarned || 0;
+
+        // Respeita limite semestral caso configurado
+        if (donation.user.semesterHoursLimit && donation.user.semesterHoursLimit > 0) {
+          const remainingHours = Math.max(0, donation.user.semesterHoursLimit - donation.user.totalHoursEarned);
+          if (computedHours > remainingHours) {
+            computedHours = remainingHours;
+          }
+        }
+      }
+
       // 1. Atualiza status da doação e responsável pela validação
       const updatedDonation = await tx.donation.update({
         where: { id: donationId },
@@ -121,6 +124,11 @@ export class ValidateDonationUseCase {
 
       return { donation: updatedDonation, certificate };
     });
+
+    const { donation } = result;
+    const computedHours = donation.hoursEarned;
+    const isStudent = donation.user.role === UserRole.ALUNO;
+    if (donation.user.email === 'doacoes-sem-login@coper.invalid') return result;
 
     // 4. Disparo de Notificações Automáticas (E-mail + In-App Notification)
     try {

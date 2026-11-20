@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { Role } from '../../domain/enums/index.js';
 
@@ -21,6 +22,7 @@ export class TokenService {
 
   static generateRefreshToken(payload: TokenPayload): string {
     return jwt.sign(payload, this.REFRESH_SECRET, {
+      jwtid: randomUUID(),
       expiresIn: this.REFRESH_EXPIRES_IN,
     });
   }

@@ -17,6 +17,7 @@ export function getSessao() {
 
 export function setSessao(sessao) {
   localStorage.setItem('coper_sessao', JSON.stringify(sessao));
+  localStorage.setItem('coper_usuario', JSON.stringify({ id: sessao.id, tipo: sessao.tipo, nome: sessao.nome }));
 }
 
 export function clearSessao() {
@@ -28,34 +29,48 @@ export function clearSessao() {
 api.interceptors.request.use((config) => {
   const sessao = getSessao();
   if (sessao?.accessToken) {
+    config._sessionId = sessao.id;
     config.headers.Authorization = `Bearer ${sessao.accessToken}`;
   }
   return config;
 });
 
 // ── Interceptor de Response: renova token automaticamente ───────────────────
+let pendingRefresh;
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        const sessao = getSessao();
-        if (!sessao?.refreshToken) throw new Error('Sem refresh token');
-        const { data } = await axios.post('/api/auth/refresh', {
-          refreshToken: sessao.refreshToken,
-        });
-        const novoAccessToken = data.data.accessToken;
-        setSessao({ ...sessao, accessToken: novoAccessToken });
-        originalRequest.headers.Authorization = `Bearer ${novoAccessToken}`;
-        return api(originalRequest);
-      } catch {
-        clearSessao();
-        window.location.href = '/login';
+    const req = error.config;
+    const session = getSessao();
+    if (error.response?.status !== 401 || !req || req._retry ||
+        (req.url.startsWith('/auth/') && req.url !== '/auth/me') || !session?.refreshToken) throw error;
+
+    req._retry = true;
+    if (req.headers.Authorization === `Bearer ${session.accessToken}`) {
+      const token = session.refreshToken;
+      if (pendingRefresh?.token !== token) {
+        const promise = axios.post('/api/auth/refresh', { refreshToken: token })
+          .then(({ data }) => {
+            const current = getSessao();
+            if (current?.refreshToken !== token) throw error;
+            setSessao({ ...current, ...data.data });
+          })
+          .catch((err) => {
+            if (err.response?.status === 401 && getSessao()?.refreshToken === token) {
+              clearSessao();
+              window.location.replace('/login');
+            }
+            throw err;
+          })
+          .finally(() => {
+            if (pendingRefresh?.token === token) pendingRefresh = undefined;
+          });
+        pendingRefresh = { token, promise };
       }
+      await pendingRefresh.promise;
     }
-    return Promise.reject(error);
+    if (getSessao()?.id !== req._sessionId) throw error;
+    return api(req);
   }
 );
 
@@ -66,12 +81,12 @@ export async function login(email, senha) {
     const user = data.data.user;
     const sessao = {
       ...user,
+      nome: user.name,
       tipo: user.role === 'COPER' ? 'admin' : user.role?.toLowerCase(),
       accessToken: data.data.accessToken,
       refreshToken: data.data.refreshToken,
     };
     setSessao(sessao);
-    localStorage.setItem('coper_usuario', JSON.stringify(sessao));
     return sessao;
   } catch (err) {
     if (err.response?.status === 404) {
@@ -99,9 +114,14 @@ export async function register(dados) {
 }
 
 export const cadastrarAluno = (aluno) =>
-  api.post('/auth/register', { ...aluno, role: 'ALUNO' })
-    .then((r) => r.data?.data || r.data)
-    .catch(() => api.post('/usuarios/alunos', aluno).then((r) => r.data));
+  register({ name: aluno.nome.trim(), cpf: aluno.cpf, email: aluno.email.trim(),
+    matricula: aluno.matricula.trim(), password: aluno.senha, role: 'ALUNO' });
+
+export const solicitarRecuperacao = (email) =>
+  api.post('/auth/forgot-password', { email }).then((r) => r.data);
+
+export const redefinirSenha = (token, password) =>
+  api.post('/auth/reset-password', { token, password }).then((r) => r.data);
 
 export const listarUsuarios = () =>
   api.get('/users').then((r) => r.data?.data || r.data).catch(() => api.get('/usuarios').then((r) => r.data));
@@ -126,16 +146,16 @@ export const buscarCampanhaPorId = (id) =>
   api.get(`/campanhas/${id}`).then((r) => r.data);
 
 export const criarCampanha = (campanha) =>
-  api.post('/campanhas', campanha).then((r) => r.data);
+  api.post('/campaigns', campanha).then((r) => r.data);
 
 export const atualizarCampanha = (id, campanha) =>
-  api.put(`/campanhas/${id}`, campanha).then((r) => r.data);
+  api.put(`/campaigns/${id}`, campanha).then((r) => r.data);
 
 export const encerrarCampanha = (id) =>
-  api.put(`/campanhas/${id}/encerrar`).then((r) => r.data);
+  api.put(`/campaigns/${id}/encerrar`).then((r) => r.data);
 
 export const deletarCampanha = (id) =>
-  api.delete(`/campanhas/${id}`).then((r) => r.data);
+  api.delete(`/campaigns/${id}`).then((r) => r.data);
 
 // ─── DOAÇÕES ─────────────────────────────────────────────────────────────────
 export const listarDoacoes = (page = 1, limit = 50) =>
@@ -147,8 +167,8 @@ export const listarDoacoes = (page = 1, limit = 50) =>
         ...d,
         id: d.id,
         data: d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : '',
-        aluno: d.user?.name || d.aluno || 'Estudante FMP',
-        matricula: d.user?.cpf || d.matricula || '',
+        aluno: d.donorName || d.user?.name || d.aluno || 'Estudante FMP',
+        matricula: d.user?.matricula || d.matricula || '',
         item: d.items?.[0]?.description || d.item || 'Doação Solidária',
         quantidade: d.items?.[0]?.quantity || d.quantidade || 1,
         horas: d.hoursEarned ?? d.horas ?? 0,
@@ -163,7 +183,7 @@ export const listarDoacoes = (page = 1, limit = 50) =>
           ...d,
           data: d.data || (d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : ''),
           aluno: d.aluno || d.user?.name || 'Estudante FMP',
-          matricula: d.matricula || d.user?.cpf || '',
+          matricula: d.matricula || d.user?.matricula || '',
           item: d.item || d.items?.[0]?.description || 'Doação Solidária',
           quantidade: d.quantidade || d.items?.[0]?.quantity || 1,
           horas: d.horas ?? d.hoursEarned ?? 0,
@@ -174,8 +194,7 @@ export const listarDoacoes = (page = 1, limit = 50) =>
 
 export const listarDoacoesPorAluno = (alunoId) =>
   api.get(`/donations/student/${alunoId}`)
-    .then((r) => r.data?.data || r.data)
-    .catch(() => api.get(`/doacoes/aluno/${alunoId}`).then((r) => r.data));
+    .then((r) => r.data?.data || r.data);
 
 export const listarMinhasDoacoes = () =>
   api.get('/donations/my').then((r) => r.data.data);
@@ -185,21 +204,18 @@ export const buscarDoacao = (id) =>
 
 export const registrarDoacao = (dados) => {
   if (dados instanceof FormData) {
-    return axios.post('/api/doacoes', dados).then((r) => r.data);
+    return api.post('/doacoes', dados, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
   }
   return api.post('/donations', dados).then((r) => r.data?.data || r.data);
 };
 
 export const validarDoacao = (id, status, motivoReprovacao) => {
   const isApproved = status === 'APPROVED' || status === 'Aprovada' || status === 'APROVADA';
-  if (isApproved) {
-    return api.patch(`/donations/${id}/approve`)
-      .then((r) => r.data?.data || r.data)
-      .catch(() => api.patch(`/donations/${id}/validate`, { status: 'APPROVED', hoursEarned: 10 }).then((r) => r.data?.data || r.data));
-  }
-  return api.patch(`/donations/${id}/reject`, { rejectionReason: motivoReprovacao })
-    .then((r) => r.data?.data || r.data)
-    .catch(() => api.patch(`/donations/${id}/validate`, { status: 'REJECTED', rejectionReason: motivoReprovacao, hoursEarned: 0 }).then((r) => r.data?.data || r.data));
+  return api.patch(`/donations/${id}/validate`, {
+    status: isApproved ? 'APPROVED' : 'REJECTED',
+    hoursEarned: isApproved ? 10 : 0,
+    rejectionReason: isApproved ? null : motivoReprovacao,
+  }).then((r) => r.data.data);
 };
 
 export const aprovarDoacao = (id) =>

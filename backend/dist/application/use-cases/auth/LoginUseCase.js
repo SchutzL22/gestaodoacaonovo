@@ -8,35 +8,16 @@ const AppError_js_1 = require("../../../domain/errors/AppError.js");
 class LoginUseCase {
     async execute(data) {
         const rawEmail = (data.email || '').trim().toLowerCase();
-        const emailAliases = {
-            'admin@fmpsc.edu.br': 'coper@coper.edu.br',
-            'admin@coper.edu.br': 'coper@coper.edu.br',
-            'lucas@aluno.fmpsc.edu.br': 'lucas.aluno@aluno.coper.edu.br',
-            'professor@fmpsc.edu.br': 'professor.libras@coper.edu.br',
-            'davi@aluno.fmpsc.edu.br': 'mariana.aluna@aluno.coper.edu.br',
-            'parceiro@empresa.com.br': 'contato@techparceira.com.br',
-            'cidadao@comunidade.org': 'contato@techparceira.com.br',
-        };
-        let user = await prisma_js_1.prisma.user.findUnique({
-            where: { email: rawEmail },
-        });
-        if (!user && emailAliases[rawEmail]) {
-            user = await prisma_js_1.prisma.user.findUnique({
-                where: { email: emailAliases[rawEmail] },
-            });
-        }
+        const user = await prisma_js_1.prisma.user.findUnique({ where: { email: rawEmail } });
         if (!user) {
             throw AppError_js_1.AppError.unauthorized('Credenciais inválidas. Verifique seu e-mail e senha.');
         }
-        let isPasswordValid = await PasswordHasher_js_1.PasswordHasher.compare(data.password, user.passwordHash);
-        if (!isPasswordValid) {
-            const validDemoPasswords = ['admin123', 'prof123', 'aluno123', 'lucas123', 'empresa123', 'esg123', 'civil123'];
-            if (validDemoPasswords.includes(data.password)) {
-                isPasswordValid = true;
-            }
-        }
+        const isPasswordValid = await PasswordHasher_js_1.PasswordHasher.compare(data.password, user.passwordHash);
         if (!isPasswordValid) {
             throw AppError_js_1.AppError.unauthorized('Credenciais inválidas. Verifique seu e-mail e senha.');
+        }
+        if (!user.isActive) {
+            throw AppError_js_1.AppError.forbidden('Conta inativa. Entre em contato com a COPER.');
         }
         const accessToken = TokenService_js_1.TokenService.generateAccessToken({
             userId: user.id,
@@ -63,6 +44,7 @@ class LoginUseCase {
                 name: user.name,
                 email: user.email,
                 cpf: user.cpf,
+                matricula: user.matricula,
                 role: user.role,
                 createdAt: user.createdAt,
             },

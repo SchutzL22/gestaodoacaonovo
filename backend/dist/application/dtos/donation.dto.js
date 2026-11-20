@@ -41,6 +41,7 @@ exports.validateDonationSchema = zod_1.z
     path: ['rejectionReason'],
 });
 exports.reportFilterSchema = zod_1.z.object({
+    campaignId: zod_1.z.string().optional(),
     startDate: zod_1.z.string().datetime().optional().or(zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
     endDate: zod_1.z.string().datetime().optional().or(zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
     status: zod_1.z.enum(['ALL', index_js_1.DonationStatus.PENDING, index_js_1.DonationStatus.APPROVED, index_js_1.DonationStatus.REJECTED]).default('ALL'),

@@ -40,7 +40,7 @@ class NotificationService {
         return item;
     }
     static getUserNotifications(userId) {
-        return this.notifications.filter((n) => n.userId === userId || n.userId === 'usr-student-001' || userId === 'default');
+        return this.notifications.filter((n) => n.userId === userId);
     }
     static markAsRead(notificationId, userId) {
         const item = this.notifications.find((n) => n.id === notificationId && (!userId || n.userId === userId));

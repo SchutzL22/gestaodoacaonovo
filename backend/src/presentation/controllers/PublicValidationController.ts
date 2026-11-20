@@ -33,26 +33,27 @@ export class PublicValidationController {
         activeStudents,
         itemsSumAgg,
         campaignsList,
-        coursesList,
+        coursesList, categories, monthly, campaignTotals,
       ] = await Promise.all([
-        prisma.donation.count({ where: { status: DonationStatus.APPROVED } }).catch(() => 42),
+        prisma.donation.count({ where: { status: DonationStatus.APPROVED } }),
         prisma.donation.aggregate({
           where: { status: DonationStatus.APPROVED },
           _sum: { hoursEarned: true },
-        }).catch(() => ({ _sum: { hoursEarned: 3240 } })),
-        prisma.certificate.count().catch(() => 156),
-        prisma.course.count().catch(() => 6),
-        prisma.classroom.count({ where: { status: CourseStatus.FINISHED } }).catch(() => 12),
-        prisma.campaign.count().catch(() => 8),
-        prisma.user.count({ where: { role: 'ALUNO', isActive: true } }).catch(() => 485),
+        }),
+        prisma.certificate.count(),
+        prisma.course.count({ where: { status: CourseStatus.OPEN } }),
+        prisma.classroom.count({ where: { status: CourseStatus.FINISHED } }),
+        prisma.campaign.count(),
+        prisma.user.count({ where: { role: 'ALUNO', isActive: true } }),
         prisma.donationItem.aggregate({
+          where: { donation: { status: DonationStatus.APPROVED } },
           _sum: { quantity: true },
-        }).catch(() => ({ _sum: { quantity: 14850 } })),
+        }),
         prisma.campaign.findMany({
           take: 6,
           orderBy: { createdAt: 'desc' },
           include: { priorityItems: true },
-        }).catch(() => []),
+        }),
         prisma.course.findMany({
           take: 6,
           orderBy: { createdAt: 'desc' },
@@ -61,108 +62,54 @@ export class PublicValidationController {
               where: { status: CourseStatus.OPEN },
               include: {
                 _count: {
-                  select: { enrollments: true },
+                  select: { enrollments: { where: { status: 'ACTIVE' } } },
                 },
               },
             },
           },
-        }).catch(() => []),
+        }),
+        prisma.donationItem.groupBy({
+          by: ['category'], where: { donation: { status: DonationStatus.APPROVED } },
+          _sum: { quantity: true }, orderBy: { _sum: { quantity: 'desc' } },
+        }),
+        prisma.$queryRaw<{ month: Date; itens: number; horas: number }[]>`
+          SELECT date_trunc('month', d.created_at) AS month, sum(i.quantity)::float8 AS itens,
+                 sum(d.hours_earned)::float8 AS horas
+          FROM donations d
+          JOIN (SELECT donation_id, sum(quantity) AS quantity FROM donation_items GROUP BY donation_id) i
+            ON i.donation_id = d.id
+          WHERE d.status = 'APPROVED' AND d.created_at >= date_trunc('month', now()) - interval '6 months'
+          GROUP BY 1 ORDER BY 1`,
+        prisma.$queryRaw<{ id: string; quantity: number }[]>`
+          SELECT d.campaign_id AS id, sum(i.quantity)::float8 AS quantity
+          FROM donations d JOIN donation_items i ON i.donation_id = d.id
+          WHERE d.status = 'APPROVED' AND d.campaign_id IS NOT NULL GROUP BY d.campaign_id`,
       ]);
 
-      const totalItems = (itemsSumAgg as any)?._sum?.quantity || 14850;
-      const hoursGranted = (totalHoursAgg as any)?._sum?.hoursEarned || 3240;
-
-      res.status(200).json({
+      const totalItems = itemsSumAgg._sum.quantity ?? 0;
+      const quantities = new Map(campaignTotals.map(c => [c.id, c.quantity]));
+      res.json({
         status: 'success',
         data: {
           impact: {
-            totalApprovedDonations: totalApprovedDonations || 42,
-            totalItemsDonated: totalItems || 14850,
-            totalHoursGranted: hoursGranted || 3240,
-            totalCertificatesIssued: totalCertificates || 156,
-            activeCourses: activeCourses || 6,
-            completedCourses: completedClassrooms || 12,
-            totalCampaigns: totalCampaigns || 8,
-            activeStudents: activeStudents || 485,
-            familiesHelped: Math.round((totalItems || 14850) / 24) || 620,
+            totalApprovedDonations, totalItemsDonated: totalItems, totalHoursGranted: totalHoursAgg._sum.hoursEarned ?? 0,
+            totalCertificatesIssued: totalCertificates, activeCourses, completedCourses: completedClassrooms,
+            totalCampaigns, activeStudents, familiesHelped: Math.round(totalItems / 24),
           },
-          campaigns: campaignsList && campaignsList.length > 0
-            ? campaignsList.map((c) => ({
-                ...c,
-                status: computeCampaignStatus(c.startDate, c.endDate, c.status),
-              }))
-            : [
-            {
-              id: 'camp-inverno-2026',
-              title: 'Campanha do Agasalho FMP 2026',
-              description: 'Arrecadação de cobertores, casacos e calçados de frio para comunidades da Grande Florianópolis.',
-              status: 'ACTIVE',
-              isUrgent: true,
-              startDate: new Date('2026-04-01'),
-              endDate: new Date('2026-07-31'),
-              priorityItems: [
-                { name: 'Cobertores e Mantas', urgencyLevel: 'ALTA', isUrgent: true },
-                { name: 'Casacos de Inverno', urgencyLevel: 'ALTA', isUrgent: true },
-              ],
-            },
-            {
-              id: 'camp-alimentos-2026',
-              title: 'SOS Alimentos & Cestas Básicas',
-              description: 'Campanha permanente para auxílio a famílias em vulnerabilidade nutricional.',
-              status: 'ACTIVE',
-              isUrgent: true,
-              startDate: new Date('2026-02-01'),
-              endDate: new Date('2026-11-30'),
-              priorityItems: [
-                { name: 'Arroz, Feijão e Óleo', urgencyLevel: 'CRÍTICA', isUrgent: true },
-                { name: 'Leite em Pó', urgencyLevel: 'ALTA', isUrgent: true },
-              ],
-            },
-            {
-              id: 'camp-livros-2026',
-              title: 'Volta às Aulas Inclusiva & Livros',
-              description: 'Doação de materiais escolares, cadernos e literatura para bibliotecas comunitárias.',
-              status: 'FUTURE',
-              isUrgent: false,
-              startDate: new Date('2026-08-01'),
-              endDate: new Date('2026-10-31'),
-              priorityItems: [
-                { name: 'Cadernos e Livros', urgencyLevel: 'NORMAL', isUrgent: false },
-              ],
-            },
-          ],
-          courses: coursesList && coursesList.length > 0 ? coursesList : [
-            {
-              id: 'course-libras-01',
-              title: 'Língua Brasileira de Sinais (Libras) - Nível Básico',
-              description: 'Curso presencial de capacitação e inclusão social na FMP.',
-              workloadHours: 40,
-              minAttendancePct: 75.0,
-              classrooms: [
-                {
-                  id: 'cls-libras-2026-1',
-                  code: 'LIBRAS-2026.1',
-                  maxCapacity: 30,
-                  _count: { enrollments: 28 },
-                },
-              ],
-            },
-            {
-              id: 'course-oratoria-01',
-              title: 'Comunicação e Oratória Comunitária',
-              description: 'Técnicas de expressão oral para lideranças sociais e acadêmicas.',
-              workloadHours: 20,
-              minAttendancePct: 75.0,
-              classrooms: [
-                {
-                  id: 'cls-orat-2026-1',
-                  code: 'ORAT-2026.1',
-                  maxCapacity: 25,
-                  _count: { enrollments: 18 },
-                },
-              ],
-            },
-          ],
+          categories: categories.map(c => ({
+            name: c.category, value: c._sum.quantity ?? 0,
+            pct: totalItems ? Math.round(100 * (c._sum.quantity ?? 0) / totalItems) + '%' : '0%',
+          })),
+          monthly: monthly.map(row => ({
+            mes: row.month.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
+            itens: row.itens, horas: row.horas,
+          })),
+          campaigns: campaignsList.map(c => ({
+            ...c, status: computeCampaignStatus(c.startDate, c.endDate, c.status),
+            currentItems: quantities.get(c.id) ?? 0,
+            targetItems: c.priorityItems.reduce((sum, item) => sum + (item.goal ?? 0), 0),
+          })),
+          courses: coursesList,
         },
       });
     } catch (error) {

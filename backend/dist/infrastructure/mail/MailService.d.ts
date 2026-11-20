@@ -1,6 +1,7 @@
 export declare class MailService {
     private static transporter;
     private static getTransporter;
+    static sendPasswordResetCode(to: string, code: string): Promise<void>;
     static sendMail(options: {
         to: string;
         subject: string;

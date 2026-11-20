@@ -1,23 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import {
   Award,
   Clock,
   BookOpen,
   HeartHandshake,
   CheckCircle2,
-  AlertTriangle,
   XCircle,
-  FileText,
   Download,
   ExternalLink,
   ChevronRight,
-  TrendingUp,
   Percent,
-  Sparkles
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { listarDoacoes, minhasInscricoes, meusCertificados } from '../../services/api';
+import { listarDoacoesPorAluno, minhasInscricoes, meusCertificados } from '../../services/api';
 
 export default function DashboardAlunoPage() {
   const { usuario } = useAuth();
@@ -27,171 +23,48 @@ export default function DashboardAlunoPage() {
   const [cursos, setCursos] = useState([]);
   const [certificados, setCertificados] = useState([]);
 
-  const [metricas, setMetricas] = useState({
-    horasAprovadas: 35,
-    horasPendentes: 10,
-    doacoesAprovadasCount: 3,
-    doacoesPendentesCount: 1,
-    doacoesReprovadasCount: 0,
-    cursosAtivosCount: 1,
-    filaEsperaCount: 0,
-    certificadosCount: 2,
-  });
+  const [erro, setErro] = useState(false);
+  const [metricas, setMetricas] = useState(null);
+  const alunoId = usuario?.id;
 
   useEffect(() => {
-    carregarDados();
-  }, [usuario]);
-
-  async function carregarDados() {
-    setLoading(true);
-    try {
-      const [resDoacoes, resInscricoes, resCerts] = await Promise.allSettled([
-        listarDoacoes(1, 10),
-        minhasInscricoes(),
-        meusCertificados(1, 10),
-      ]);
-
-      // 1. Processa doações
-      let rawDoacoes = [];
-      if (resDoacoes.status === 'fulfilled' && Array.isArray(resDoacoes.value)) {
-        rawDoacoes = resDoacoes.value;
+    let atual = true;
+    async function carregarDados() {
+      try {
+        const [historico, inscricoes, documentos] = await Promise.all([
+          listarDoacoesPorAluno(alunoId), minhasInscricoes(), meusCertificados(1, 10),
+        ]);
+        if (!atual) return;
+        const lista = historico.map(d => ({
+          ...d, data: new Date(d.createdAt).toLocaleDateString('pt-BR'), campanha: d.campaign?.title,
+          item: d.items?.map(i => i.description).join(', '), quantidade: d.items?.reduce((n, i) => n + i.quantity, 0),
+          horas: d.hoursEarned, statusRaw: d.status,
+        }));
+        const aprovadas = lista.filter(d => d.statusRaw === 'APPROVED');
+        const pendentes = lista.filter(d => d.statusRaw === 'PENDING');
+        setDoacoes(lista.slice(0, 10));
+        setCursos(inscricoes.enrollments);
+        setCertificados(documentos.certificates);
+        setMetricas({
+          horasAprovadas: aprovadas.reduce((n, d) => n + d.horas, 0),
+          horasPendentes: pendentes.reduce((n, d) => n + d.horas, 0),
+          doacoesAprovadasCount: aprovadas.length, doacoesPendentesCount: pendentes.length,
+          doacoesReprovadasCount: lista.filter(d => d.statusRaw === 'REJECTED').length,
+          certificadosCount: documentos.pagination.total,
+        });
+        setErro(false);
+      } catch {
+        if (atual) setErro(true);
+      } finally {
+        if (atual) setLoading(false);
       }
-      if (rawDoacoes.length === 0) {
-        // Fallback dados institucionais para demonstração
-        rawDoacoes = [
-          {
-            id: 'doa-demo-01',
-            authHash: 'f7a2c091-8d2b-4fa3-9f12-9c1048b61a32',
-            data: '15/05/2026',
-            item: '5kg de Alimentos Não Perecíveis',
-            quantidade: 5,
-            horas: 10,
-            status: 'Aprovada',
-            statusRaw: 'APPROVED',
-            campanha: 'Campanha de Alimentos FMP',
-          },
-          {
-            id: 'doa-demo-02',
-            authHash: 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
-            data: '02/06/2026',
-            item: '2 Agasalhos de Inverno',
-            quantidade: 2,
-            horas: 10,
-            status: 'Aprovada',
-            statusRaw: 'APPROVED',
-            campanha: 'Campanha do Agasalho Palhoça',
-          },
-          {
-            id: 'doa-demo-03',
-            authHash: 'c3d5e7f9-3b5a-42f0-90c7-56b903c210f5',
-            data: '10/06/2026',
-            item: 'Kit de Material Escolar',
-            quantidade: 1,
-            horas: 5,
-            status: 'Pendente',
-            statusRaw: 'PENDING',
-            campanha: 'Volta às Aulas Inclusiva',
-          },
-        ];
-      }
-      setDoacoes(rawDoacoes);
-
-      // Calcula saldos de horas
-      let aprovadasHoras = 0;
-      let pendentesHoras = 0;
-      let aprovadasQtd = 0;
-      let pendentesQtd = 0;
-      let reprovadasQtd = 0;
-
-      rawDoacoes.forEach((d) => {
-        const isApp = d.status === 'Aprovada' || d.statusRaw === 'APPROVED';
-        const isRej = d.status === 'Reprovada' || d.statusRaw === 'REJECTED';
-        const h = Number(d.horas || d.hoursEarned || 0);
-
-        if (isApp) {
-          aprovadasHoras += h;
-          aprovadasQtd += 1;
-        } else if (isRej) {
-          reprovadasQtd += 1;
-        } else {
-          pendentesHoras += h || 5;
-          pendentesQtd += 1;
-        }
-      });
-
-      // 2. Processa cursos / inscrições
-      let rawCursos = [];
-      if (resInscricoes.status === 'fulfilled' && resInscricoes.value?.enrollments) {
-        rawCursos = resInscricoes.value.enrollments;
-      }
-      if (rawCursos.length === 0) {
-        rawCursos = [
-          {
-            id: 'enr-demo-01',
-            status: 'ACTIVE',
-            attendancePercentage: 88.5,
-            gradeA1: 9.0,
-            gradeA2: 8.5,
-            gradeA3: null,
-            finalGrade: 8.8,
-            classroom: {
-              id: 'cls-demo-1',
-              code: 'LIBRAS-2026.1',
-              course: {
-                title: 'Língua Brasileira de Sinais (Libras) - Básico',
-                workloadHours: 40,
-                minAttendancePct: 75.0,
-              },
-            },
-          },
-        ];
-      }
-      setCursos(rawCursos);
-
-      const ativos = rawCursos.filter((c) => c.status === 'ACTIVE').length;
-      const fila = rawCursos.filter((c) => c.status === 'WAITLIST').length;
-
-      // 3. Processa certificados
-      let rawCerts = [];
-      if (resCerts.status === 'fulfilled' && resCerts.value?.certificates) {
-        rawCerts = resCerts.value.certificates;
-      }
-      if (rawCerts.length === 0) {
-        rawCerts = [
-          {
-            id: 'cert-1',
-            authHash: 'f7a2c091-8d2b-4fa3-9f12-9c1048b61a32',
-            title: 'Declaração de Horas - Doação de Alimentos',
-            hours: 10,
-            issuedAt: '2026-05-15',
-          },
-          {
-            id: 'cert-2',
-            authHash: 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
-            title: 'Declaração de Horas - Campanha do Agasalho',
-            hours: 10,
-            issuedAt: '2026-06-02',
-          },
-        ];
-      }
-      setCertificados(rawCerts);
-
-      setMetricas({
-        horasAprovadas: aprovadasHoras || (usuario?.totalHoursEarned || 20),
-        horasPendentes: pendentesHoras,
-        doacoesAprovadasCount: aprovadasQtd || 2,
-        doacoesPendentesCount: pendentesQtd || 1,
-        doacoesReprovadasCount: reprovadasQtd,
-        cursosAtivosCount: ativos || 1,
-        filaEsperaCount: fila,
-        certificadosCount: rawCerts.length || 2,
-      });
-    } catch (err) {
-      console.error('Erro ao carregar dados do dashboard do aluno:', err);
-    } finally {
-      setLoading(false);
     }
-  }
+    carregarDados();
+    return () => { atual = false; };
+  }, [alunoId]);
+
+  if (erro) return <p role="alert">Não foi possível carregar seu painel acadêmico.</p>;
+  if (loading || !metricas) return <p role="status">Carregando seu painel…</p>;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8 text-slate-100 max-w-7xl mx-auto">
@@ -211,8 +84,8 @@ export default function DashboardAlunoPage() {
               Olá, {usuario?.nome || 'Estudante'}!
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 mt-1.5 max-w-2xl leading-relaxed">
-              Matrícula: <strong className="text-white font-mono">{usuario?.matricula || '2026.1-FMP'}</strong> • 
-              E-mail Institucional: <strong className="text-white">{usuario?.email || 'aluno@aluno.fmpsc.edu.br'}</strong>
+              Matrícula: <strong className="text-white font-mono">{usuario?.matricula || '—'}</strong> • 
+              E-mail Institucional: <strong className="text-white">{usuario?.email || '—'}</strong>
             </p>
           </div>
 

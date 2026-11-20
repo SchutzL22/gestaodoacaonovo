@@ -66,19 +66,13 @@ export default function CampanhasAdminPage() {
   const [novaForm, setNovaForm] = useState(NOVA_FORM_DEFAULT);
   const [editForm, setEditForm] = useState(null);
 
-  useEffect(() => { carregar(); }, []);
 
-  async function carregar() {
-    setLoading(true);
-    try {
-      const data = await listarCampanhas();
-      // A API pode retornar array ou { campaigns: [...] }
-      const list = Array.isArray(data) ? data : (data?.campaigns || data?.data?.campaigns || []);
-      setCampanhas(list);
-    }
-    catch (err) { toast.error('Erro ao carregar campanhas.'); }
-    finally { setLoading(false); }
-  }
+  useEffect(() => {
+    listarCampanhas()
+      .then(setCampanhas)
+      .catch(() => toast.error('Erro ao carregar campanhas.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   async function handleCriar(e) {
     e.preventDefault();
@@ -167,7 +161,7 @@ export default function CampanhasAdminPage() {
       const updated = res?.data?.campaign || res?.campaign || res;
       setCampanhas(cs => cs.map(c => c.id === id ? { ...c, status: 'CLOSED', ...updated } : c));
       toast.success('Campanha encerrada.');
-    } catch (err) { toast.error('Erro ao encerrar.'); }
+    } catch { toast.error('Erro ao encerrar.'); }
   }
 
   async function handleDeletar(id) {
@@ -176,7 +170,7 @@ export default function CampanhasAdminPage() {
       await deletarCampanha(id);
       setCampanhas(cs => cs.filter(c => c.id !== id));
       toast.success('Campanha removida.');
-    } catch (err) { toast.error('Erro ao remover.'); }
+    } catch { toast.error('Erro ao remover.'); }
   }
 
   function addItemNova() {
@@ -221,7 +215,7 @@ export default function CampanhasAdminPage() {
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
             <label>Descrição</label>
             <textarea rows={3} placeholder="Descreva a campanha..."
-              value={novaForm.descricao} onChange={e => setNovaForm(f => ({ ...f, descricao: e.target.value }))} />
+              required minLength={5} value={novaForm.descricao} onChange={e => setNovaForm(f => ({ ...f, descricao: e.target.value }))} />
           </div>
 
           <div className="form-group" style={{ marginTop: '0.5rem' }}>
@@ -350,7 +344,7 @@ export default function CampanhasAdminPage() {
               </div>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label>Descrição</label>
-                <textarea rows={3} value={editForm.descricao}
+                <textarea rows={3} required minLength={5} value={editForm.descricao}
                   onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} />
               </div>
               <div className="form-group" style={{ marginBottom: '1rem' }}>

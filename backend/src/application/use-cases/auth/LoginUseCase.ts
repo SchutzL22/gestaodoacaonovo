@@ -9,43 +9,19 @@ export class LoginUseCase {
   async execute(data: LoginInput) {
     const rawEmail = (data.email || '').trim().toLowerCase();
 
-    // Mapeamento resiliente de apelidos institucionais de demonstração
-    const emailAliases: Record<string, string> = {
-      'admin@fmpsc.edu.br': 'coper@coper.edu.br',
-      'admin@coper.edu.br': 'coper@coper.edu.br',
-      'lucas@aluno.fmpsc.edu.br': 'lucas.aluno@aluno.coper.edu.br',
-      'professor@fmpsc.edu.br': 'professor.libras@coper.edu.br',
-      'davi@aluno.fmpsc.edu.br': 'mariana.aluna@aluno.coper.edu.br',
-      'parceiro@empresa.com.br': 'contato@techparceira.com.br',
-      'cidadao@comunidade.org': 'contato@techparceira.com.br',
-    };
-
-    let user = await prisma.user.findUnique({
-      where: { email: rawEmail },
-    });
-
-    if (!user && emailAliases[rawEmail]) {
-      user = await prisma.user.findUnique({
-        where: { email: emailAliases[rawEmail] },
-      });
-    }
+    const user = await prisma.user.findUnique({ where: { email: rawEmail } });
 
     if (!user) {
       throw AppError.unauthorized('Credenciais inválidas. Verifique seu e-mail e senha.');
     }
 
-    let isPasswordValid = await PasswordHasher.compare(data.password, user.passwordHash);
-
-    // Suporte a senhas padrão de teste caso a semente tenha sido povoada com credenciais alternativas
-    if (!isPasswordValid) {
-      const validDemoPasswords = ['admin123', 'prof123', 'aluno123', 'lucas123', 'empresa123', 'esg123', 'civil123'];
-      if (validDemoPasswords.includes(data.password)) {
-        isPasswordValid = true;
-      }
-    }
-
+    const isPasswordValid = await PasswordHasher.compare(data.password, user.passwordHash);
     if (!isPasswordValid) {
       throw AppError.unauthorized('Credenciais inválidas. Verifique seu e-mail e senha.');
+    }
+
+    if (!user.isActive) {
+      throw AppError.forbidden('Conta inativa. Entre em contato com a COPER.');
     }
 
     const accessToken = TokenService.generateAccessToken({
@@ -78,6 +54,7 @@ export class LoginUseCase {
         name: user.name,
         email: user.email,
         cpf: user.cpf,
+        matricula: user.matricula,
         role: user.role,
         createdAt: user.createdAt,
       },

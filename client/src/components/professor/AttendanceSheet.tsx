@@ -13,7 +13,6 @@ import {
   BookOpen,
   UserCheck,
   UserX,
-  Sparkles,
 } from 'lucide-react';
 
 export interface StudentAttendance {

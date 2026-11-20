@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const app_js_1 = __importDefault(require("./app.js"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const retentionCleanup_js_1 = require("../infrastructure/jobs/retentionCleanup.js");
 dotenv_1.default.config();
 const PORT = Number(process.env.PORT) || 3001;
 const server = app_js_1.default.listen(PORT, () => {
@@ -17,6 +18,7 @@ const server = app_js_1.default.listen(PORT, () => {
    🛡️  Arquitetura: Clean Architecture & DDD + Prisma ORM
   =======================================================
   `);
+    (0, retentionCleanup_js_1.scheduleRetentionJob)();
 });
 process.on('SIGTERM', () => {
     console.log('[Server] Encerrando processo graciosamente...');

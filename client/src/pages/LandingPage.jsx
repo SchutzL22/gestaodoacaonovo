@@ -1,6 +1,7 @@
-﻿import React, { useState, useEffect } from 'react';
+import { paginaInicial } from '../context/perfis';
+import React, { useState, useEffect } from 'react';
 import fmpLogo from '../assets/fmplogo.png';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   HeartHandshake,
@@ -20,9 +21,7 @@ import {
   Download,
   X,
   Clock,
-  ArrowRight,
   GraduationCap,
-  TrendingUp,
   Check,
   Gift
 } from 'lucide-react';
@@ -38,7 +37,7 @@ import {
   YAxis,
   CartesianGrid
 } from 'recharts';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { registrarDoacaoAnonima } from '../services/api';
 import './LandingPage.css';
 
@@ -47,7 +46,7 @@ const CATEGORY_COLORS = ['#38bdf8', '#818cf8', '#a855f7', '#34d399', '#fbbf24'];
 
 export default function LandingPage() {
   const { usuario } = useAuth();
-  const navigate = useNavigate();
+
 
   // Scroll state para a navbar
   const [scrolled, setScrolled] = useState(false);
@@ -77,98 +76,12 @@ export default function LandingPage() {
   });
 
   // Métricas dinâmicas em tempo real
-  const [kpis, setKpis] = useState({
-    totalItens: 14850,
-    familiasImpactadas: 620,
-    alunosEngajados: 485,
-    horasComputadas: 3240,
-    cursosAtivos: 4,
-    campanhasAtivas: 4,
-    certificadosEmitidos: 156
-  });
-
-  // Campanhas e Cursos dinâmicos
-  const [campaignsList, setCampaignsList] = useState([
-    {
-      id: 'camp-inverno-2026',
-      title: 'Campanha do Agasalho FMP 2026',
-      description: 'Arrecadação de cobertores, casacos e calçados de frio para comunidades da Grande Florianópolis.',
-      status: 'ACTIVE',
-      isUrgent: true,
-      priorityItems: [
-        { name: 'Cobertores e Mantas', urgencyLevel: 'ALTA' },
-        { name: 'Casacos de Inverno', urgencyLevel: 'ALTA' },
-      ],
-      currentItems: 3450,
-      targetItems: 3000
-    },
-    {
-      id: 'camp-alimentos-2026',
-      title: 'SOS Alimentos & Cestas Básicas',
-      description: 'Campanha permanente para auxílio nutricional a lares em situação de vulnerabilidade.',
-      status: 'ACTIVE',
-      isUrgent: true,
-      priorityItems: [
-        { name: 'Leite em Pó', urgencyLevel: 'CRÍTICA' },
-        { name: 'Fraldas G / GG', urgencyLevel: 'CRÍTICA' },
-        { name: 'Arroz e Feijão', urgencyLevel: 'ALTA' }
-      ],
-      currentItems: 7200,
-      targetItems: 8000
-    },
-    {
-      id: 'camp-livros-2026',
-      title: 'Volta às Aulas Inclusiva & Livros',
-      description: 'Doação de cadernos, literatura infanto-juvenil e materiais didáticos para bibliotecas comunitárias.',
-      status: 'ACTIVE',
-      isUrgent: false,
-      priorityItems: [
-        { name: 'Cadernos Universitários', urgencyLevel: 'NORMAL' },
-        { name: 'Kits de Lápis e Canetas', urgencyLevel: 'NORMAL' }
-      ],
-      currentItems: 2400,
-      targetItems: 2500
-    }
-  ]);
-
-  const [coursesList, setCoursesList] = useState([
-    {
-      id: 'course-libras-01',
-      title: 'Língua Brasileira de Sinais (Libras) - Nível Básico',
-      description: 'Capacitação presencial voltada para acessibilidade comunicacional, inclusão de pessoas surdas e formação cidadã.',
-      workloadHours: 40,
-      minAttendancePct: 75.0,
-      minGrade: 7.0,
-      enrollmentOpen: true,
-      classrooms: [
-        {
-          code: 'LIBRAS-2026-T01',
-          capacity: 50,
-          enrolledCount: 42,
-          waitlistCount: 5,
-          schedule: 'Terças e Quintas • 19h00 às 21h30'
-        }
-      ]
-    },
-    {
-      id: 'course-info-01',
-      title: 'Informática Cidadã e Ferramentas Digitais',
-      description: 'Oficina de inclusão digital para jovens e adultos: elaboração de currículos, navegação segura e ferramentas de escritório.',
-      workloadHours: 30,
-      minAttendancePct: 75.0,
-      minGrade: 7.0,
-      enrollmentOpen: true,
-      classrooms: [
-        {
-          code: 'INFO-2026-T01',
-          capacity: 35,
-          enrolledCount: 35,
-          waitlistCount: 8,
-          schedule: 'Sábados • 08h30 às 12h00'
-        }
-      ]
-    }
-  ]);
+  const [stats, setStats] = useState(null);
+  const [statsError, setStatsError] = useState(false);
+  const campaignsList = stats?.campaigns || [];
+  const coursesList = stats?.courses || [];
+  const categoryData = stats?.categories || [];
+  const monthlyData = stats?.monthly || [];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -180,46 +93,11 @@ export default function LandingPage() {
 
   // Busca dados em tempo real da API pública
   useEffect(() => {
-    async function fetchPublicStats() {
-      try {
-        const res = await axios.get('/api/public/stats');
-        if (res.data?.data) {
-          const { impact, campaigns, courses } = res.data.data;
-          if (impact) {
-            setKpis((prev) => ({
-              ...prev,
-              totalItens: impact.totalItemsDonated > 0 ? impact.totalItemsDonated : prev.totalItens,
-              familiasImpactadas: impact.familiesHelped || prev.familiasImpactadas,
-              alunosEngajados: impact.activeStudents > 0 ? impact.activeStudents : prev.alunosEngajados,
-              horasComputadas: impact.totalHoursGranted > 0 ? impact.totalHoursGranted : prev.horasComputadas,
-              cursosAtivos: impact.activeCourses || prev.cursosAtivos,
-              campanhasAtivas: impact.totalCampaigns || prev.campanhasAtivas,
-              certificadosEmitidos: impact.totalCertificatesIssued || prev.certificadosEmitidos
-            }));
-          }
-          if (campaigns && Array.isArray(campaigns) && campaigns.length > 0) {
-            setCampaignsList((prev) => {
-              // Mescla com metas visuais
-              return campaigns.map((c, idx) => ({
-                ...c,
-                currentItems: c.currentItems || (prev[idx] ? prev[idx].currentItems : 1200),
-                targetItems: c.targetItems || (prev[idx] ? prev[idx].targetItems : 2000),
-                priorityItems: c.priorityItems && c.priorityItems.length > 0 ? c.priorityItems : [
-                  { name: 'Alimentos Não Perecíveis', urgencyLevel: 'ALTA' },
-                  { name: 'Itens de Higiene', urgencyLevel: 'MÉDIA' }
-                ]
-              }));
-            });
-          }
-          if (courses && Array.isArray(courses) && courses.length > 0) {
-            setCoursesList(courses);
-          }
-        }
-      } catch (err) {
-        // Mantém dados estáticos elegantes em fallback
-      }
-    }
-    fetchPublicStats();
+    const controller = new AbortController();
+    axios.get('/api/public/stats', { signal: controller.signal })
+      .then(({ data }) => setStats(data.data))
+      .catch(() => { if (!controller.signal.aborted) setStatsError(true); });
+    return () => controller.abort();
   }, []);
 
   // Validação rápida inline de hash
@@ -328,34 +206,6 @@ export default function LandingPage() {
     }
   };
 
-  // Dados dos Gráficos
-  const categoryData = [
-    { name: 'Alimentos Não Perecíveis', value: 7200, pct: '48%' },
-    { name: 'Agasalhos & Cobertores', value: 3450, pct: '23%' },
-    { name: 'Material Escolar & Livros', value: 2400, pct: '16%' },
-    { name: 'Itens de Higiene', value: 1200, pct: '8%' },
-    { name: 'Brinquedos & Outros', value: 600, pct: '5%' }
-  ];
-
-  const monthlyData = [
-    { mes: 'Jan', itens: 850, horas: 180 },
-    { mes: 'Fev', itens: 1200, horas: 250 },
-    { mes: 'Mar', itens: 2100, horas: 440 },
-    { mes: 'Abr', itens: 2600, horas: 560 },
-    { mes: 'Mai', itens: 3200, horas: 690 },
-    { mes: 'Jun', itens: 3550, horas: 780 },
-    { mes: 'Jul', itens: 3800, horas: 820 }
-  ];
-
-  // Destino do botão de login/painel
-  const getDashboardPath = () => {
-    if (!usuario) return '/login';
-    if (usuario.tipo === 'admin' || usuario.role === 'COPER') return '/dashboard';
-    if (usuario.role === 'PROFESSOR') return '/diario-classe';
-    if (usuario.role === 'EMPRESARIO') return '/painel-impacto';
-    return '/meu-painel';
-  };
-
   return (
     <div className="landing-page dark-coper" id="inicio">
       {/* Background Glows com acentos ciano e neon */}
@@ -393,7 +243,7 @@ export default function LandingPage() {
             <span>Doar sem Login</span>
           </button>
 
-          <Link to={getDashboardPath()} className="btn-nav-login">
+          <Link to={(usuario ? paginaInicial(usuario) : '/login')} className="btn-nav-login">
             <LogIn size={18} />
             <span>{usuario ? 'Acessar Painel' : 'Entrar / Acessar Sistema'}</span>
           </Link>
@@ -489,6 +339,7 @@ export default function LandingPage() {
 
       {/* ── 3. DADOS DE IMPACTO & TRANSPARÊNCIA (EMPRESAS / PARCEIROS) ── */}
       <section className="landing-section" id="impacto">
+        {statsError && <p role="alert">Não foi possível carregar os indicadores, campanhas e cursos.</p>}
         <div className="section-header">
           <span className="section-tag">Transparência em Tempo Real</span>
           <h2 className="section-title">Resultados Concretos para a Comunidade</h2>
@@ -507,7 +358,7 @@ export default function LandingPage() {
               </div>
               <span className="kpi-trend">+18.5% este mês</span>
             </div>
-            <div className="kpi-value">{kpis.totalItens.toLocaleString('pt-BR')}</div>
+            <div className="kpi-value">{stats?.impact.totalItemsDonated.toLocaleString('pt-BR') ?? '—'}</div>
             <div className="kpi-label">Itens e Doações Arrecadadas</div>
             <div className="kpi-subtext">Alimentos, agasalhos, livros e kits prioritários</div>
           </div>
@@ -519,9 +370,9 @@ export default function LandingPage() {
               </div>
               <span className="kpi-trend">Famílias Assistidas</span>
             </div>
-            <div className="kpi-value">{kpis.familiasImpactadas.toLocaleString('pt-BR')}</div>
-            <div className="kpi-label">Lares e Entidades Atendidas</div>
-            <div className="kpi-subtext">Beneficiários diretos em comunidades de Palhoça e região</div>
+            <div className="kpi-value">{stats?.impact.familiesHelped.toLocaleString('pt-BR') ?? '—'}</div>
+            <div className="kpi-label">Estimativa de famílias atendidas</div>
+            <div className="kpi-subtext">Estimativa de uma família a cada 24 itens homologados</div>
           </div>
 
           <div className="kpi-card" style={{ '--kpi-accent': '#a855f7' }}>
@@ -531,8 +382,8 @@ export default function LandingPage() {
               </div>
               <span className="kpi-trend">Engajamento Universitário</span>
             </div>
-            <div className="kpi-value">{kpis.alunosEngajados}</div>
-            <div className="kpi-label">Estudantes Voluntários Ativos</div>
+            <div className="kpi-value">{stats?.impact.activeStudents ?? '—'}</div>
+            <div className="kpi-label">Alunos com cadastro ativo</div>
             <div className="kpi-subtext">Alunos vinculados com e-mail @aluno.fmpsc.edu.br</div>
           </div>
 
@@ -543,7 +394,7 @@ export default function LandingPage() {
               </div>
               <span className="kpi-trend">Extensão Acadêmica</span>
             </div>
-            <div className="kpi-value">{kpis.horasComputadas}h</div>
+            <div className="kpi-value">{stats?.impact.totalHoursGranted ?? '—'}h</div>
             <div className="kpi-label">Horas Acadêmicas Validadas</div>
             <div className="kpi-subtext">Comprovantes com QR Code emitidos pela coordenação</div>
           </div>
@@ -667,8 +518,9 @@ export default function LandingPage() {
         </div>
 
         <div className="projects-grid">
+          {stats && !campaignsList.length && <p>Nenhuma campanha cadastrada.</p>}
           {campaignsList.map((c) => {
-            const pct = Math.min(100, Math.round(((c.currentItems || 1200) / (c.targetItems || 2000)) * 100));
+            const pct = Math.min(100, Math.round((c.targetItems > 0 ? c.currentItems / c.targetItems : 0) * 100));
             return (
               <div key={c.id} className="project-card">
                 <div>
@@ -711,7 +563,7 @@ export default function LandingPage() {
                   <div className="progress-section">
                     <div className="progress-labels">
                       <span>Progresso da Meta</span>
-                      <span>{(c.currentItems || 0).toLocaleString('pt-BR')} / {(c.targetItems || 2000).toLocaleString('pt-BR')} ({pct}%)</span>
+                      <span>{c.currentItems.toLocaleString('pt-BR')} {c.targetItems > 0 ? `/ ${c.targetItems.toLocaleString('pt-BR')} (${pct}%)` : 'itens arrecadados'}</span>
                     </div>
                     <div className="progress-bar-bg">
                       <div
@@ -774,6 +626,7 @@ export default function LandingPage() {
         </div>
 
         <div className="projects-grid">
+          {stats && !coursesList.length && <p>Nenhum curso cadastrado.</p>}
           {coursesList.map((curso) => {
             const turma = curso.classrooms && curso.classrooms[0] ? curso.classrooms[0] : null;
             const enrolled = turma ? (turma.enrolledCount ?? turma._count?.enrollments ?? 30) : 30;
@@ -1130,7 +983,7 @@ export default function LandingPage() {
                       className="modal-select"
                     >
                       <option value="">Ação Solidária Geral / Ponto de Coleta FMP</option>
-                      {campaignsList.map((c) => (
+                      {campaignsList.filter(c => c.status === 'ACTIVE').map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.title} {c.isUrgent ? '• (Urgente)' : ''}
                         </option>

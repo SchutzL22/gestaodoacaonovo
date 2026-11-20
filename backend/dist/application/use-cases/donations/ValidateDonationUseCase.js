@@ -9,35 +9,37 @@ const MailService_js_1 = require("../../../infrastructure/mail/MailService.js");
 const NotificationService_js_1 = require("../../services/NotificationService.js");
 class ValidateDonationUseCase {
     async execute(donationId, validatorId, data) {
-        const donation = await prisma_js_1.prisma.donation.findUnique({
-            where: { id: donationId },
-            include: {
-                user: true,
-                items: true,
-            },
-        });
-        if (!donation) {
-            throw AppError_js_1.AppError.notFound('Doação não encontrada.');
-        }
-        if (donation.status !== index_js_1.DonationStatus.PENDING) {
-            throw AppError_js_1.AppError.badRequest('Esta doação já foi avaliada anteriormente.');
-        }
-        const isStudent = donation.user.role === index_js_1.UserRole.ALUNO;
-        if (data.status === index_js_1.DonationStatus.APPROVED && isStudent && !donation.user.isActive) {
-            throw AppError_js_1.AppError.badRequest('Trava de validação: Não é permitido aprovar horas para aluno com matrícula inativa no sistema.');
-        }
-        let computedHours = 0;
-        if (data.status === index_js_1.DonationStatus.APPROVED && isStudent) {
-            computedHours = data.hoursEarned || 0;
-            if (donation.user.semesterHoursLimit && donation.user.semesterHoursLimit > 0) {
-                const remainingHours = Math.max(0, donation.user.semesterHoursLimit - donation.user.totalHoursEarned);
-                if (computedHours > remainingHours) {
-                    computedHours = remainingHours;
-                }
-            }
-        }
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const result = await prisma_js_1.prisma.$transaction(async (tx) => {
+            await tx.$queryRaw `SELECT u.id FROM users u JOIN donations d ON d.user_id = u.id
+        WHERE d.id = ${donationId} FOR UPDATE OF u, d`;
+            const donation = await tx.donation.findUnique({
+                where: { id: donationId },
+                include: {
+                    user: true,
+                    items: true,
+                },
+            });
+            if (!donation) {
+                throw AppError_js_1.AppError.notFound('Doação não encontrada.');
+            }
+            if (donation.status !== index_js_1.DonationStatus.PENDING) {
+                throw AppError_js_1.AppError.badRequest('Esta doação já foi avaliada anteriormente.');
+            }
+            const isStudent = donation.user.role === index_js_1.UserRole.ALUNO;
+            if (data.status === index_js_1.DonationStatus.APPROVED && isStudent && !donation.user.isActive) {
+                throw AppError_js_1.AppError.badRequest('Trava de validação: Não é permitido aprovar horas para aluno com matrícula inativa no sistema.');
+            }
+            let computedHours = 0;
+            if (data.status === index_js_1.DonationStatus.APPROVED && isStudent) {
+                computedHours = data.hoursEarned || 0;
+                if (donation.user.semesterHoursLimit && donation.user.semesterHoursLimit > 0) {
+                    const remainingHours = Math.max(0, donation.user.semesterHoursLimit - donation.user.totalHoursEarned);
+                    if (computedHours > remainingHours) {
+                        computedHours = remainingHours;
+                    }
+                }
+            }
             const updatedDonation = await tx.donation.update({
                 where: { id: donationId },
                 data: {
@@ -101,6 +103,11 @@ class ValidateDonationUseCase {
             }
             return { donation: updatedDonation, certificate };
         });
+        const { donation } = result;
+        const computedHours = donation.hoursEarned;
+        const isStudent = donation.user.role === index_js_1.UserRole.ALUNO;
+        if (donation.user.email === 'doacoes-sem-login@coper.invalid')
+            return result;
         try {
             const isApproved = data.status === index_js_1.DonationStatus.APPROVED;
             const effectiveHash = result.certificate?.authHash || result.donation.authHash;

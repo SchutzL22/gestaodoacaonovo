@@ -1,19 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import {
-  BookOpen,
   Calendar,
   CheckCircle2,
   XCircle,
-  Users,
   Award,
   Save,
   CheckCheck,
   TrendingUp,
-  AlertTriangle,
-  Lock,
   Sparkles,
-  ChevronRight,
   GraduationCap,
   HeartHandshake,
   Download,
@@ -24,7 +19,6 @@ import {
   registrarChamada,
   salvarNotasTurma,
   encerrarTurma,
-  historicoChamadaTurma,
   listarDoacoes
 } from '../../services/api';
 import { Link } from 'react-router-dom';
@@ -50,7 +44,7 @@ export default function DiarioClassePage() {
   const [minhasDoacoes, setMinhasDoacoes] = useState([]);
 
   useEffect(() => {
-    carregarTurmas();
+    carregarTurmas(null);
     carregarMinhasDoacoes();
   }, []);
 
@@ -61,33 +55,21 @@ export default function DiarioClassePage() {
         setMinhasDoacoes(data);
       }
     } catch {
-      // fallback gracioso
-      setMinhasDoacoes([
-        {
-          id: 'prof-doa-1',
-          authHash: 'b1c3d5e7-2a4f-41e9-89b6-45a892b109e4',
-          data: '10/05/2026',
-          item: 'Livros Didáticos para Ensino Médio',
-          quantidade: 15,
-          status: 'Aprovada',
-          statusRaw: 'APPROVED',
-          campanha: 'Volta às Aulas Inclusiva',
-        },
-      ]);
+      toast.error('Erro ao carregar suas doações.');
     }
   }
 
-  async function carregarTurmas() {
+  async function carregarTurmas(turmaId) {
     setLoading(true);
     try {
       const data = await listarTurmasProfessor();
       const list = data?.classrooms || [];
       setTurmas(list);
-      if (list.length > 0 && !selectedTurmaId) {
+      if (list.length > 0 && !turmaId) {
         setSelectedTurmaId(list[0].id);
         inicializarTurma(list[0]);
-      } else if (selectedTurmaId) {
-        const current = list.find((t) => t.id === selectedTurmaId);
+      } else if (turmaId) {
+        const current = list.find((t) => t.id === turmaId);
         if (current) inicializarTurma(current);
       }
     } catch (err) {
@@ -162,7 +144,7 @@ export default function DiarioClassePage() {
 
       await registrarChamada(selectedTurma.id, selectedDate, records);
       toast.success(`Chamada da data ${selectedDate} salva com sucesso!`);
-      await carregarTurmas();
+      await carregarTurmas(selectedTurmaId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erro ao registrar chamada.');
     } finally {
@@ -187,7 +169,7 @@ export default function DiarioClassePage() {
 
       await salvarNotasTurma(selectedTurma.id, gradesPayload);
       toast.success('Avaliações e médias salvas com sucesso no banco de dados!');
-      await carregarTurmas();
+      await carregarTurmas(selectedTurmaId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erro ao salvar avaliações.');
     } finally {
@@ -214,7 +196,7 @@ export default function DiarioClassePage() {
         `Turma encerrada! Aprovados: ${res.approvedCount} alunos (Certificados gerados com sucesso).`,
         { duration: 6000 }
       );
-      await carregarTurmas();
+      await carregarTurmas(selectedTurmaId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erro ao encerrar turma.');
     } finally {

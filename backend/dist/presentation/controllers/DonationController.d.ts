@@ -11,5 +11,6 @@ export declare class DonationController {
     list: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     listByStudent: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     getById: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+    downloadEvidence: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
     downloadPdf: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 }

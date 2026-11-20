@@ -7,12 +7,14 @@ const institucionalEmailPattern = /^[a-zA-Z0-9._%+-]+@(fmpsc\.edu\.br|coper\.edu
 
 export const registerSchema = z.object({
   name: z.string().min(3, 'O nome deve ter no mínimo 3 caracteres'),
-  email: z.string().email('E-mail inválido'),
+  email: z.string().trim().toLowerCase().email('E-mail inválido')
+    .refine(email => !email.endsWith('@coper.invalid'), 'Domínio reservado.'),
   cpf: z
     .string()
     .min(11, 'CPF deve conter no mínimo 11 dígitos')
     .max(14, 'CPF inválido')
-    .transform((val) => val.replace(/\D/g, '')),
+    .transform((val) => val.replace(/\D/g, ''))
+    .pipe(z.string().regex(/^\d{11}$/, 'CPF deve conter 11 dígitos')),
   password: z.string().min(6, 'A senha deve conter no mínimo 6 caracteres'),
   role: z.nativeEnum(Role).default(Role.ALUNO),
   matricula: z.string().optional(),
@@ -46,7 +48,7 @@ export const registerSchema = z.object({
 export type RegisterInput = z.infer<typeof registerSchema>;
 
 export const loginSchema = z.object({
-  email: z.string().email('E-mail inválido'),
+  email: z.string().trim().toLowerCase().email('E-mail inválido'),
   password: z.string().min(1, 'A senha é obrigatória'),
 });
 
@@ -59,7 +61,7 @@ export const refreshTokenSchema = z.object({
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email('E-mail inválido'),
+  email: z.string().trim().toLowerCase().email('E-mail inválido'),
 });
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;

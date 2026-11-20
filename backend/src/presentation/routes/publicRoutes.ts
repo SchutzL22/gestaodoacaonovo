@@ -37,7 +37,7 @@ const anonymousDonationSchema = z.object({
     .string()
     .min(11, 'CPF deve conter no mínimo 11 dígitos')
     .max(14)
-    .transform((val) => val.replace(/\D/g, '')),
+    .transform((val) => val.replace(/\D/g, '')).pipe(z.string().regex(/^\d{11}$/, 'CPF deve conter 11 dígitos')),
   donorEmail: z.string().email('E-mail inválido').optional().nullable(),
   donorPhone: z.string().optional().nullable(),
   campaignId: z.string().optional().nullable(),
@@ -64,7 +64,6 @@ router.post(
       const {
         donorName,
         donorCpf,
-        donorEmail,
         donorPhone,
         campaignId,
         evidenceUrl,
@@ -72,40 +71,26 @@ router.post(
         items,
       } = req.body;
 
-      // Localiza usuário existente pelo CPF ou busca o usuário padrão da comunidade CIVIL
-      let donorUser = await prisma.user.findUnique({
-        where: { cpf: donorCpf },
-      });
-
-      if (!donorUser) {
-        donorUser =
-          (await prisma.user.findFirst({ where: { role: 'CIVIL' } })) ||
-          (await prisma.user.findFirst({ where: { role: 'COPER' } }));
-      }
-
-      if (!donorUser) {
-        return res.status(500).json({
-          status: 'error',
-          message: 'Sistema temporariamente indisponível para registro anônimo.',
-        });
-      }
-
       let validCampaignId: string | null = null;
       if (campaignId) {
-        const camp = await prisma.campaign.findUnique({ where: { id: campaignId } }).catch(() => null);
-        if (camp) {
-          // Trava de negócio: impede doações em campanhas FUTURAS ou ENCERRADAS
-          const campStatus = computeCampaignStatus(camp.startDate, camp.endDate);
-          if (campStatus !== CampaignStatus.ACTIVE) {
-            return res.status(400).json({
-              status: 'error',
-              message: `Esta campanha não está ativa para receber doações (status: ${campStatus}).`,
-            });
-          }
-          validCampaignId = campaignId;
+        const camp = await prisma.campaign.findUnique({ where: { id: campaignId } });
+        if (!camp) return res.status(404).json({ status: 'error', message: 'Campanha não encontrada.' });
+        const campStatus = computeCampaignStatus(camp.startDate, camp.endDate, camp.status);
+        if (campStatus !== CampaignStatus.ACTIVE) {
+          return res.status(400).json({ status: 'error', message: 'Esta campanha não está ativa para receber doações.' });
         }
+        validCampaignId = campaignId;
       }
 
+      // O formulário público não autentica alunos. As doações avulsas pertencem a um cadastro técnico sem login.
+      const donorUser = await prisma.user.upsert({
+        where: { cpf: 'COMUNIDADE_SEM_LOGIN' },
+        update: {},
+        create: {
+          name: 'Doações da comunidade', email: 'doacoes-sem-login@coper.invalid', cpf: 'COMUNIDADE_SEM_LOGIN',
+          passwordHash: '!', role: 'CIVIL', isActive: false,
+        },
+      });
       const authHash = uuidv4();
 
       const donation = await prisma.donation.create({

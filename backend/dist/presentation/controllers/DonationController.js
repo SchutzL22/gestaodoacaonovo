@@ -6,6 +6,8 @@ const ValidateDonationUseCase_js_1 = require("../../application/use-cases/donati
 const DownloadCertificatePDFUseCase_js_1 = require("../../application/use-cases/certificates/DownloadCertificatePDFUseCase.js");
 const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const AppError_js_1 = require("../../domain/errors/AppError.js");
+const zod_1 = require("zod");
+const node_path_1 = require("node:path");
 const index_js_1 = require("../../domain/enums/index.js");
 class DonationController {
     createDonationUseCase = new CreateDonationUseCase_js_1.CreateDonationUseCase();
@@ -47,7 +49,7 @@ class DonationController {
             if (!req.user)
                 throw AppError_js_1.AppError.unauthorized();
             const id = req.params.id;
-            const hoursEarned = Number(req.body?.hoursEarned) || 10;
+            const hoursEarned = zod_1.z.coerce.number().finite().nonnegative().default(10).parse(req.body?.hoursEarned);
             const result = await this.validateDonationUseCase.execute(id, req.user.userId, {
                 status: 'APPROVED',
                 hoursEarned,
@@ -90,7 +92,7 @@ class DonationController {
             const page = Math.max(1, Number(req.query.page) || 1);
             const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
             const skip = (page - 1) * limit;
-            const whereClause = req.user.role === index_js_1.UserRole.COPER
+            const whereClause = req.user.role === index_js_1.UserRole.COPER && req.path !== '/my'
                 ? {}
                 : { userId: req.user.userId };
             const [donations, total, totalHoursAgg] = await Promise.all([
@@ -148,7 +150,7 @@ class DonationController {
             if (!req.user)
                 throw AppError_js_1.AppError.unauthorized();
             const studentId = req.params.studentId;
-            if (req.user.role === index_js_1.UserRole.ALUNO && req.user.userId !== studentId) {
+            if (req.user.role !== index_js_1.UserRole.COPER && req.user.userId !== studentId) {
                 throw AppError_js_1.AppError.forbidden('Você só tem permissão para visualizar suas próprias doações.');
             }
             const donations = await prisma_js_1.prisma.donation.findMany({
@@ -209,6 +211,24 @@ class DonationController {
         }
         catch (error) {
             next(error);
+        }
+    };
+    downloadEvidence = async (req, res, next) => {
+        try {
+            if (!req.user)
+                throw AppError_js_1.AppError.unauthorized();
+            const id = zod_1.z.string().uuid().parse(req.params.id);
+            const donation = await prisma_js_1.prisma.donation.findUniqueOrThrow({ where: { id }, select: { userId: true, evidenceUrl: true } });
+            if (req.user.role !== index_js_1.UserRole.COPER && req.user.userId !== donation.userId)
+                throw AppError_js_1.AppError.forbidden();
+            const ext = zod_1.z.enum(['jpg', 'png', 'webp']).parse(req.params.ext);
+            if (donation.evidenceUrl !== `/api/donations/${id}/evidence.${ext}`)
+                throw AppError_js_1.AppError.notFound('Sem foto anexada.');
+            res.download((0, node_path_1.resolve)('uploads', 'evidencias', `${id}.${ext}`), `evidencia.${ext}`, (err) => { if (err)
+                next(err); });
+        }
+        catch (err) {
+            next(err);
         }
     };
     downloadPdf = async (req, res, next) => {

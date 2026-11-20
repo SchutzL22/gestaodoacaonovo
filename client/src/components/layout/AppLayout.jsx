@@ -2,12 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faHandHoldingHeart, faChartPie, faPlusCircle, faClipboardCheck,
+  faChartPie, faPlusCircle, faClipboardCheck,
   faBullhorn, faStar, faChartBar, faUserGear, faUserGraduate,
   faClockRotateLeft, faBars, faBell, faUser, faRightFromBracket,
-  faMagnifyingGlass, faUserCircle
+  faMagnifyingGlass
 } from '@fortawesome/free-solid-svg-icons';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { listarNotificacoes, pesquisaGlobal } from '../../services/api';
 import fmpLogo from '../../assets/fmplogo.png';
 import './AppLayout.css';
@@ -83,6 +83,12 @@ export default function AppLayout() {
     menu = ADMIN_MENU;
   } else if (userRole === 'PROFESSOR') {
     menu = PROFESSOR_MENU;
+  } else if (userRole === 'CIVIL') {
+    menu = [
+      { to: '/validar', icon: faClipboardCheck, label: 'Validar documento' },
+      { to: '/registrar-doacao', icon: faPlusCircle, label: 'Registrar doação' },
+      { to: '/editar-perfil', icon: faUserGear, label: 'Editar perfil' },
+    ];
   } else if (userRole === 'EMPRESARIO') {
     menu = EMPRESARIO_MENU;
   }
@@ -98,26 +104,23 @@ export default function AppLayout() {
 
   // Barra de Pesquisa Global com Debounce de 300ms
   useEffect(() => {
-    if (!searchQuery || searchQuery.trim().length < 2) {
-      setSearchResults({ students: [], campaigns: [], donations: [] });
-      setSearchOpen(false);
-      return;
-    }
-
+    if (searchQuery.trim().length < 2) return;
+    let atual = true;
     const timer = setTimeout(async () => {
       setSearchLoading(true);
       try {
         const data = await pesquisaGlobal(searchQuery.trim());
+        if (!atual) return;
         setSearchResults(data || { students: [], campaigns: [], donations: [] });
         setSearchOpen(true);
       } catch (err) {
         console.error('Erro na pesquisa global:', err);
       } finally {
-        setSearchLoading(false);
+        if (atual) setSearchLoading(false);
       }
     }, 280);
 
-    return () => clearTimeout(timer);
+    return () => { atual = false; clearTimeout(timer); };
   }, [searchQuery]);
 
   // Fecha dropdowns ao clicar fora
@@ -134,8 +137,8 @@ export default function AppLayout() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  function handleLogout() {
-    sair();
+  async function handleLogout() {
+    await sair();
     navigate('/login', { replace: true });
   }
 
@@ -201,7 +204,12 @@ export default function AppLayout() {
               type="text"
               placeholder="Pesquisar Alunos, Campanhas ou Doações..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                setSearchResults({ students: [], campaigns: [], donations: [] });
+                setSearchOpen(false);
+                setSearchLoading(false);
+              }}
               onFocus={() => {
                 if (searchQuery.trim().length >= 2) setSearchOpen(true);
               }}

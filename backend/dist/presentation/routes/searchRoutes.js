@@ -12,11 +12,14 @@ router.get('/', async (req, res, next) => {
             res.json({ status: 'success', data: { students: [], campaigns: [], donations: [] } });
             return;
         }
+        const user = req.user;
+        const admin = user.role === 'COPER';
         const cleanCpf = q.replace(/\D/g, '');
         const [students, campaigns, donations] = await Promise.all([
             prisma_js_1.prisma.user.findMany({
                 where: {
                     role: 'ALUNO',
+                    ...(!admin && { id: user.userId }),
                     OR: [
                         { name: { contains: q, mode: 'insensitive' } },
                         { matricula: { contains: q, mode: 'insensitive' } },
@@ -51,6 +54,7 @@ router.get('/', async (req, res, next) => {
             }).catch(() => []),
             prisma_js_1.prisma.donation.findMany({
                 where: {
+                    ...(!admin && { userId: user.userId }),
                     OR: [
                         { donorName: { contains: q, mode: 'insensitive' } },
                         { authHash: { contains: q, mode: 'insensitive' } },

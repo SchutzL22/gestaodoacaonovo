@@ -7,12 +7,14 @@ const alunoEmailPattern = /^[a-zA-Z0-9._%+-]+@aluno\.(fmpsc\.edu\.br|coper\.edu\
 const institucionalEmailPattern = /^[a-zA-Z0-9._%+-]+@(fmpsc\.edu\.br|coper\.edu\.br)$/;
 exports.registerSchema = zod_1.z.object({
     name: zod_1.z.string().min(3, 'O nome deve ter no mínimo 3 caracteres'),
-    email: zod_1.z.string().email('E-mail inválido'),
+    email: zod_1.z.string().trim().toLowerCase().email('E-mail inválido')
+        .refine(email => !email.endsWith('@coper.invalid'), 'Domínio reservado.'),
     cpf: zod_1.z
         .string()
         .min(11, 'CPF deve conter no mínimo 11 dígitos')
         .max(14, 'CPF inválido')
-        .transform((val) => val.replace(/\D/g, '')),
+        .transform((val) => val.replace(/\D/g, ''))
+        .pipe(zod_1.z.string().regex(/^\d{11}$/, 'CPF deve conter 11 dígitos')),
     password: zod_1.z.string().min(6, 'A senha deve conter no mínimo 6 caracteres'),
     role: zod_1.z.nativeEnum(index_js_1.Role).default(index_js_1.Role.ALUNO),
     matricula: zod_1.z.string().optional(),
@@ -39,14 +41,14 @@ exports.registerSchema = zod_1.z.object({
     path: ['matricula'],
 });
 exports.loginSchema = zod_1.z.object({
-    email: zod_1.z.string().email('E-mail inválido'),
+    email: zod_1.z.string().trim().toLowerCase().email('E-mail inválido'),
     password: zod_1.z.string().min(1, 'A senha é obrigatória'),
 });
 exports.refreshTokenSchema = zod_1.z.object({
     refreshToken: zod_1.z.string().min(1, 'Refresh token é obrigatório'),
 });
 exports.forgotPasswordSchema = zod_1.z.object({
-    email: zod_1.z.string().email('E-mail inválido'),
+    email: zod_1.z.string().trim().toLowerCase().email('E-mail inválido'),
 });
 exports.resetPasswordSchema = zod_1.z.object({
     token: zod_1.z.string().min(1, 'Token é obrigatório'),

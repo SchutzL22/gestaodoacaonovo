@@ -150,11 +150,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       where: { id },
       include: {
         priorityItems: true,
-        donations: {
-          take: 10,
-          orderBy: { createdAt: 'desc' },
-          include: { items: true, user: { select: { name: true, role: true } } },
-        },
+        _count: { select: { donations: true } },
       },
     });
 
@@ -235,10 +231,15 @@ router.put(
       if (endDate !== undefined) updatePayload.endDate = endDate ? new Date(endDate) : null;
 
       // Busca datas atuais para recalcular status
-      const existing = await prisma.campaign.findUnique({ where: { id }, select: { startDate: true, endDate: true } });
+      const existing = await prisma.campaign.findUnique({ where: { id }, select: { startDate: true, endDate: true, status: true } });
+      if (!existing) throw AppError.notFound('Campanha não encontrada.');
       const newStart = updatePayload.startDate ?? existing?.startDate;
-      const newEnd = updatePayload.endDate ?? existing?.endDate;
-      updatePayload.status = computeCampaignStatus(newStart, newEnd);
+      const newEnd = endDate === undefined ? existing.endDate : updatePayload.endDate;
+      if (!newStart || (newEnd && newEnd < newStart)) throw AppError.badRequest('Período da campanha inválido.');
+      updatePayload.status = computeCampaignStatus(newStart, newEnd, existing.status);
+      if (priorityItems !== undefined) {
+        updatePayload.priorityItems = { deleteMany: {}, create: priorityItems };
+      }
 
       const campaign = await prisma.campaign.update({
         where: { id },

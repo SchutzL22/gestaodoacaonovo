@@ -20,6 +20,14 @@ class MailService {
         }
         return this.transporter;
     }
+    static async sendPasswordResetCode(to, code) {
+        await this.getTransporter().sendMail({
+            from: process.env.SMTP_FROM || 'COPER <notificacoes@coper.edu.br>',
+            to,
+            subject: 'Recuperação de senha do COPER',
+            text: `Cole este código na tela de recuperação de senha do COPER: ${code}\nEle expira em uma hora.`,
+        });
+    }
     static async sendMail(options) {
         try {
             if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {

@@ -8,166 +8,61 @@ const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const index_js_1 = require("../../domain/enums/index.js");
 const NotificationService_js_1 = require("../../application/services/NotificationService.js");
 const campaignRoutes_js_1 = require("./campaignRoutes.js");
+const authMiddleware_js_1 = require("../middlewares/authMiddleware.js");
+const rbacMiddleware_js_1 = require("../middlewares/rbacMiddleware.js");
+const AppError_js_1 = require("../../domain/errors/AppError.js");
+const PasswordHasher_js_1 = require("../../infrastructure/security/PasswordHasher.js");
+const zod_1 = require("zod");
+const node_crypto_1 = require("node:crypto");
+const promises_1 = require("node:fs/promises");
+const node_path_1 = require("node:path");
 const multer_1 = __importDefault(require("multer"));
 const upload = (0, multer_1.default)({ limits: { fileSize: 10 * 1024 * 1024 } });
 const router = (0, express_1.Router)();
-let campanhasState = [
-    {
-        id: 1,
-        titulo: 'Campanha do Agasalho FMP 2026',
-        descricao: 'Arrecadação de agasalhos, cobertores e roupas de inverno para a comunidade de Palhoça.',
-        status: 'Ativa',
-        dataLimite: '2026-06-30',
-        limiteHoras: 20,
-        regrasConversao: '1 agasalho = 2.5 horas',
-        urgente: true,
-        itensPrioritarios: [
-            { id: 1, nome: 'Casacos de Inverno', meta: 100, urgencia: 'ALTA', campanhaId: 1 },
-            { id: 2, nome: 'Cobertores Térmicos', meta: 60, urgencia: 'ALTA', campanhaId: 1 },
-        ],
-    },
-    {
-        id: 2,
-        titulo: 'Arrecadação de Alimentos e Cestas Básicas',
-        descricao: 'Doação de alimentos não perecíveis prioritários (arroz, feijão, macarrão, óleo e leite).',
-        status: 'Ativa',
-        dataLimite: '2026-05-15',
-        limiteHoras: 30,
-        regrasConversao: '5kg de alimentos = 5 horas',
-        urgente: false,
-        itensPrioritarios: [
-            { id: 3, nome: 'Arroz Tipo 1 (5kg)', meta: 120, urgencia: 'MEDIA', campanhaId: 2 },
-            { id: 4, nome: 'Feijão Preto (1kg)', meta: 150, urgencia: 'MEDIA', campanhaId: 2 },
-        ],
-    },
-    {
-        id: 3,
-        titulo: 'Campanha de Livros e Cidadania Digital',
-        descricao: 'Doação de livros didáticos, literatura e materiais de informática para escolas públicas parceiras.',
-        status: 'Ativa',
-        dataLimite: '2026-08-31',
-        limiteHoras: 15,
-        regrasConversao: '1 livro didático = 1.5 horas',
-        urgente: false,
-        itensPrioritarios: [
-            { id: 5, nome: 'Livros de Ensino Fundamental/Médio', meta: 80, urgencia: 'NORMAL', campanhaId: 3 },
-        ],
-    },
-];
-let itensPrioritariosState = [
-    { id: 1, nome: 'Arroz Tipo 1 (5kg)', meta: 120, urgencia: 'ALTA', campanhaId: 2 },
-    { id: 2, nome: 'Feijão Preto (1kg)', meta: 150, urgencia: 'ALTA', campanhaId: 2 },
-    { id: 3, nome: 'Casacos e Cobertores', meta: 100, urgencia: 'ALTA', campanhaId: 1 },
-    { id: 4, nome: 'Livros Didáticos', meta: 80, urgencia: 'NORMAL', campanhaId: 3 },
-];
-let nextCampanhaId = 4;
-let nextItemId = 6;
-router.get('/campanhas', async (req, res) => {
-    try {
-        const dbCampaigns = await prisma_js_1.prisma.campaign.findMany({
-            include: { priorityItems: true },
-            orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
-        });
-        if (dbCampaigns && dbCampaigns.length > 0) {
-            return res.json(dbCampaigns.map((c) => {
-                const autoStatus = (0, campaignRoutes_js_1.computeCampaignStatus)(c.startDate, c.endDate, c.status);
-                const statusText = autoStatus === index_js_1.CampaignStatus.CLOSED
-                    ? 'Encerrada'
-                    : autoStatus === index_js_1.CampaignStatus.FUTURE
-                        ? 'Futura'
-                        : c.isUrgent
-                            ? 'Urgente'
-                            : 'Ativa';
-                return {
-                    id: c.id,
-                    titulo: c.title,
-                    title: c.title,
-                    descricao: c.description,
-                    description: c.description,
-                    status: statusText,
-                    statusEnum: autoStatus,
-                    dataInicio: c.startDate ? c.startDate.toISOString().split('T')[0] : null,
-                    dataLimite: c.endDate ? c.endDate.toISOString().split('T')[0] : null,
-                    startDate: c.startDate,
-                    endDate: c.endDate,
-                    limiteHoras: c.hoursLimit,
-                    hoursLimit: c.hoursLimit,
-                    regrasConversao: c.conversionRules,
-                    urgente: c.isUrgent,
-                    isUrgent: c.isUrgent,
-                    itensPrioritarios: c.priorityItems.map((p) => ({
-                        id: p.id,
-                        nome: p.name,
-                        name: p.name,
-                        meta: p.goal,
-                        goal: p.goal,
-                        urgencia: p.urgencyLevel,
-                        urgencyLevel: p.urgencyLevel,
-                        campanhaId: p.campaignId,
-                    })),
-                    priorityItems: c.priorityItems,
-                };
-            }));
+const admin = [authMiddleware_js_1.authMiddleware, (0, rbacMiddleware_js_1.requireRoles)(index_js_1.UserRole.COPER)];
+function ownerOrAdmin(param) {
+    return (req, res, next) => {
+        if (req.user?.role !== index_js_1.UserRole.COPER && req.user?.userId !== req.params[param]) {
+            throw AppError_js_1.AppError.forbidden('Acesso restrito ao titular ou à COPER.');
         }
-    }
-    catch { }
-    res.json(campanhasState);
-});
-router.get('/campanhas/:id', async (req, res) => {
-    const paramId = String(req.params.id);
+        next();
+    };
+}
+function mapCampaign(c) {
+    const statusEnum = (0, campaignRoutes_js_1.computeCampaignStatus)(c.startDate, c.endDate, c.status);
+    const status = statusEnum === index_js_1.CampaignStatus.CLOSED ? 'Encerrada'
+        : statusEnum === index_js_1.CampaignStatus.FUTURE ? 'Futura' : c.isUrgent ? 'Urgente' : 'Ativa';
+    return {
+        ...c, titulo: c.title, descricao: c.description, status, statusEnum,
+        dataInicio: c.startDate.toISOString().slice(0, 10),
+        dataLimite: c.endDate?.toISOString().slice(0, 10) || null,
+        limiteHoras: c.hoursLimit, regrasConversao: c.conversionRules, urgente: c.isUrgent,
+        itensPrioritarios: c.priorityItems.map(p => ({ ...p, ...mapPriorityItem(p) })),
+    };
+}
+router.get('/campanhas', async (req, res, next) => {
     try {
-        const campaign = await prisma_js_1.prisma.campaign.findUnique({
-            where: { id: paramId },
-            include: { priorityItems: true },
+        const campaigns = await prisma_js_1.prisma.campaign.findMany({
+            include: { priorityItems: true }, orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
         });
-        if (campaign) {
-            const autoStatus = (0, campaignRoutes_js_1.computeCampaignStatus)(campaign.startDate, campaign.endDate, campaign.status);
-            const statusText = autoStatus === index_js_1.CampaignStatus.CLOSED
-                ? 'Encerrada'
-                : autoStatus === index_js_1.CampaignStatus.FUTURE
-                    ? 'Futura'
-                    : campaign.isUrgent
-                        ? 'Urgente'
-                        : 'Ativa';
-            return res.json({
-                id: campaign.id,
-                titulo: campaign.title,
-                title: campaign.title,
-                descricao: campaign.description,
-                description: campaign.description,
-                status: statusText,
-                statusEnum: autoStatus,
-                dataInicio: campaign.startDate ? campaign.startDate.toISOString().split('T')[0] : null,
-                dataLimite: campaign.endDate ? campaign.endDate.toISOString().split('T')[0] : null,
-                startDate: campaign.startDate,
-                endDate: campaign.endDate,
-                limiteHoras: campaign.hoursLimit,
-                hoursLimit: campaign.hoursLimit,
-                regrasConversao: campaign.conversionRules,
-                urgente: campaign.isUrgent,
-                isUrgent: campaign.isUrgent,
-                itensPrioritarios: (campaign.priorityItems || []).map((p) => ({
-                    id: p.id,
-                    nome: p.name,
-                    name: p.name,
-                    meta: p.goal,
-                    goal: p.goal,
-                    urgencia: p.urgencyLevel,
-                    urgencyLevel: p.urgencyLevel,
-                    campanhaId: p.campaignId,
-                })),
-                priorityItems: campaign.priorityItems,
-            });
-        }
+        res.json(campaigns.map(mapCampaign));
     }
-    catch { }
-    const id = Number(paramId);
-    const found = campanhasState.find((c) => c.id === id);
-    if (!found)
-        return res.status(404).json({ erro: 'Campanha não encontrada.' });
-    res.json(found);
+    catch (err) {
+        next(err);
+    }
 });
-router.post('/campanhas', async (req, res) => {
+router.get('/campanhas/:id', async (req, res, next) => {
+    try {
+        const campaign = await prisma_js_1.prisma.campaign.findUniqueOrThrow({
+            where: { id: String(req.params.id) }, include: { priorityItems: true },
+        });
+        res.json(mapCampaign(campaign));
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.post('/campanhas', ...admin, async (req, res, next) => {
     const { titulo, title, descricao, description, dataInicio, startDate, dataLimite, endDate, status, limiteHoras, hoursLimit, regrasConversao, itensPrioritarios } = req.body;
     const finalTitle = title || titulo;
     if (!finalTitle)
@@ -202,44 +97,13 @@ router.post('/campanhas', async (req, res) => {
             },
             include: { priorityItems: true },
         });
-        const statusText = autoStatus === index_js_1.CampaignStatus.CLOSED ? 'Encerrada' : autoStatus === index_js_1.CampaignStatus.FUTURE ? 'Futura' : created.isUrgent ? 'Urgente' : 'Ativa';
-        return res.status(201).json({
-            id: created.id,
-            titulo: created.title,
-            title: created.title,
-            descricao: created.description,
-            description: created.description,
-            status: statusText,
-            statusEnum: autoStatus,
-            dataInicio: created.startDate ? created.startDate.toISOString().split('T')[0] : null,
-            dataLimite: created.endDate ? created.endDate.toISOString().split('T')[0] : null,
-            startDate: created.startDate,
-            endDate: created.endDate,
-            limiteHoras: created.hoursLimit,
-            hoursLimit: created.hoursLimit,
-            urgente: created.isUrgent,
-            isUrgent: created.isUrgent,
-            itensPrioritarios: created.priorityItems,
-            priorityItems: created.priorityItems,
-        });
+        res.status(201).json(mapCampaign(created));
     }
-    catch { }
-    const nova = {
-        id: nextCampanhaId++,
-        titulo: finalTitle,
-        descricao: description || descricao || '',
-        status: autoStatus === index_js_1.CampaignStatus.CLOSED ? 'Encerrada' : autoStatus === index_js_1.CampaignStatus.FUTURE ? 'Futura' : 'Ativa',
-        dataInicio: parsedStartDate.toISOString().split('T')[0],
-        dataLimite: parsedEndDate ? parsedEndDate.toISOString().split('T')[0] : null,
-        limiteHoras: limiteHoras ? Number(limiteHoras) : null,
-        regrasConversao: regrasConversao || null,
-        urgente: status === 'Urgente',
-        itensPrioritarios: Array.isArray(itensPrioritarios) ? itensPrioritarios : [],
-    };
-    campanhasState.unshift(nova);
-    res.status(201).json(nova);
+    catch (err) {
+        next(err);
+    }
 });
-router.put('/campanhas/:id', async (req, res) => {
+router.put('/campanhas/:id', ...admin, async (req, res, next) => {
     const paramId = String(req.params.id);
     const { titulo, title, descricao, description, dataInicio, startDate, dataLimite, endDate, status, limiteHoras, hoursLimit } = req.body;
     const finalStart = startDate || dataInicio;
@@ -265,114 +129,89 @@ router.put('/campanhas/:id', async (req, res) => {
                 },
                 include: { priorityItems: true },
             });
-            const statusText = autoStatus === index_js_1.CampaignStatus.CLOSED ? 'Encerrada' : autoStatus === index_js_1.CampaignStatus.FUTURE ? 'Futura' : updated.isUrgent ? 'Urgente' : 'Ativa';
-            return res.json({
-                id: updated.id,
-                titulo: updated.title,
-                title: updated.title,
-                descricao: updated.description,
-                status: statusText,
-                dataInicio: updated.startDate ? updated.startDate.toISOString().split('T')[0] : null,
-                dataLimite: updated.endDate ? updated.endDate.toISOString().split('T')[0] : null,
-                startDate: updated.startDate,
-                endDate: updated.endDate,
-                limiteHoras: updated.hoursLimit,
-                itensPrioritarios: updated.priorityItems,
-            });
+            return res.json(mapCampaign(updated));
         }
+        throw AppError_js_1.AppError.notFound('Campanha não encontrada.');
     }
-    catch { }
-    const id = Number(paramId);
-    const idx = campanhasState.findIndex((c) => c.id === id);
-    if (idx === -1)
-        return res.status(404).json({ erro: 'Campanha não encontrada.' });
-    const updated = {
-        ...campanhasState[idx],
-        ...req.body,
-        id,
-        urgente: req.body.status === 'Urgente',
-    };
-    campanhasState[idx] = updated;
-    res.json(updated);
-});
-router.put('/campanhas/:id/encerrar', async (req, res) => {
-    const paramId = String(req.params.id);
-    try {
-        const existing = await prisma_js_1.prisma.campaign.findUnique({ where: { id: paramId } });
-        if (existing) {
-            const updated = await prisma_js_1.prisma.campaign.update({
-                where: { id: paramId },
-                data: { status: index_js_1.CampaignStatus.CLOSED },
-                include: { priorityItems: true },
-            });
-            return res.json({ ...updated, status: 'Encerrada', statusEnum: index_js_1.CampaignStatus.CLOSED });
-        }
+    catch (err) {
+        next(err);
     }
-    catch { }
-    const id = Number(paramId);
-    const idx = campanhasState.findIndex((c) => c.id === id);
-    if (idx === -1)
-        return res.status(404).json({ erro: 'Campanha não encontrada.' });
-    campanhasState[idx].status = 'Encerrada';
-    campanhasState[idx].urgente = false;
-    res.json(campanhasState[idx]);
 });
-router.delete('/campanhas/:id', (req, res) => {
-    const id = Number(req.params.id);
-    campanhasState = campanhasState.filter((c) => c.id !== id);
-    res.status(204).send();
-});
-router.get('/itens-prioritarios', async (req, res) => {
+router.put('/campanhas/:id/encerrar', ...admin, async (req, res, next) => {
     try {
-        const dbItems = await prisma_js_1.prisma.priorityItem.findMany({
-            include: { campaign: true },
-            orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
+        const campaign = await prisma_js_1.prisma.campaign.update({
+            where: { id: String(req.params.id) }, data: { status: index_js_1.CampaignStatus.CLOSED }, include: { priorityItems: true },
         });
-        if (dbItems && dbItems.length > 0) {
-            return res.json(dbItems.map((i) => ({
-                id: i.id,
-                nome: i.name,
-                meta: i.goal,
-                urgencia: i.urgencyLevel,
-                campanhaId: i.campaignId,
-            })));
-        }
+        res.json(mapCampaign(campaign));
     }
-    catch { }
-    res.json(itensPrioritariosState);
+    catch (err) {
+        next(err);
+    }
 });
-router.post('/itens-prioritarios', (req, res) => {
-    const { nome, meta, urgencia, campanhaId } = req.body;
-    if (!nome)
-        return res.status(400).json({ erro: 'Nome é obrigatório.' });
-    const novo = {
-        id: nextItemId++,
-        nome,
-        meta: meta || null,
-        urgencia: urgencia || 'NORMAL',
-        campanhaId: campanhaId ? Number(campanhaId) : undefined,
-    };
-    itensPrioritariosState.unshift(novo);
-    res.status(201).json(novo);
+router.delete('/campanhas/:id', ...admin, async (req, res, next) => {
+    try {
+        await prisma_js_1.prisma.campaign.delete({ where: { id: String(req.params.id) } });
+        res.sendStatus(204);
+    }
+    catch (err) {
+        next(err);
+    }
 });
-router.put('/itens-prioritarios/:id', (req, res) => {
-    const id = Number(req.params.id);
-    const idx = itensPrioritariosState.findIndex((i) => i.id === id);
-    if (idx === -1)
-        return res.status(404).json({ erro: 'Item não encontrado.' });
-    itensPrioritariosState[idx] = {
-        ...itensPrioritariosState[idx],
-        ...req.body,
-        id,
-    };
-    res.json(itensPrioritariosState[idx]);
+function mapPriorityItem(item) {
+    return { id: item.id, nome: item.name, meta: item.goal, urgencia: item.urgencyLevel, campanhaId: item.campaignId };
+}
+const itemInput = zod_1.z.object({
+    nome: zod_1.z.string().trim().min(1),
+    meta: zod_1.z.coerce.number().positive().nullable().optional(),
+    urgencia: zod_1.z.enum(['NORMAL', 'MEDIA', 'ALTA']).default('NORMAL'),
+    campanhaId: zod_1.z.string().min(1),
 });
-router.delete('/itens-prioritarios/:id', (req, res) => {
-    const id = Number(req.params.id);
-    itensPrioritariosState = itensPrioritariosState.filter((i) => i.id !== id);
-    res.status(204).send();
+router.get('/itens-prioritarios', async (req, res, next) => {
+    try {
+        const items = await prisma_js_1.prisma.priorityItem.findMany({ orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }] });
+        res.json(items.map(mapPriorityItem));
+    }
+    catch (err) {
+        next(err);
+    }
 });
-router.get('/relatorios', async (req, res, next) => {
+router.post('/itens-prioritarios', ...admin, async (req, res, next) => {
+    try {
+        const item = itemInput.parse(req.body);
+        const created = await prisma_js_1.prisma.priorityItem.create({ data: {
+                campaignId: item.campanhaId, name: item.nome, goal: item.meta,
+                urgencyLevel: item.urgencia, isUrgent: item.urgencia === 'ALTA',
+            } });
+        res.status(201).json(mapPriorityItem(created));
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.put('/itens-prioritarios/:id', ...admin, async (req, res, next) => {
+    try {
+        const item = itemInput.partial().parse(req.body);
+        const updated = await prisma_js_1.prisma.priorityItem.update({
+            where: { id: String(req.params.id) },
+            data: { name: item.nome, goal: item.meta, campaignId: item.campanhaId, urgencyLevel: item.urgencia,
+                isUrgent: item.urgencia === undefined ? undefined : item.urgencia === 'ALTA' },
+        });
+        res.json(mapPriorityItem(updated));
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.delete('/itens-prioritarios/:id', ...admin, async (req, res, next) => {
+    try {
+        await prisma_js_1.prisma.priorityItem.delete({ where: { id: String(req.params.id) } });
+        res.sendStatus(204);
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.get('/relatorios', ...admin, async (req, res, next) => {
     try {
         const twoYearsAgo = new Date();
         twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
@@ -405,21 +244,21 @@ router.get('/relatorios', async (req, res, next) => {
         next(err);
     }
 });
-router.get('/notificacoes/aluno/:alunoId', (req, res) => {
+router.get('/notificacoes/aluno/:alunoId', authMiddleware_js_1.authMiddleware, ownerOrAdmin('alunoId'), (req, res) => {
     const notifs = NotificationService_js_1.NotificationService.getUserNotifications(String(req.params.alunoId));
     res.json(notifs);
 });
-router.get('/notificacoes', (req, res) => {
-    const userId = req.user?.userId || req.query.userId || 'default';
+router.get('/notificacoes', authMiddleware_js_1.authMiddleware, (req, res) => {
+    const userId = req.user.userId;
     const notifs = NotificationService_js_1.NotificationService.getUserNotifications(String(userId));
     res.json(notifs);
 });
-router.patch('/notificacoes/:id/read', (req, res) => {
-    const success = NotificationService_js_1.NotificationService.markAsRead(String(req.params.id));
+router.patch('/notificacoes/:id/read', authMiddleware_js_1.authMiddleware, (req, res) => {
+    const success = NotificationService_js_1.NotificationService.markAsRead(String(req.params.id), req.user.userId);
     res.json({ success });
 });
-router.delete('/notificacoes/:id', (req, res) => {
-    NotificationService_js_1.NotificationService.deleteNotification(String(req.params.id));
+router.delete('/notificacoes/:id', authMiddleware_js_1.authMiddleware, (req, res) => {
+    NotificationService_js_1.NotificationService.deleteNotification(String(req.params.id), req.user.userId);
     res.status(204).send();
 });
 function mapUser(u) {
@@ -431,14 +270,13 @@ function mapUser(u) {
         name: u.name,
         email: u.email,
         cpf: u.cpf,
-        matricula: u.cpf,
+        matricula: u.matricula,
         role: u.role,
         tipo: isCoper ? 'admin' : isAluno ? 'aluno' : u.role.toLowerCase(),
-        saldoHoras: isAluno ? 25 : 0,
-        curso: isAluno ? 'Análise e Desenvolvimento de Sistemas' : undefined,
+        saldoHoras: u.totalHoursEarned,
     };
 }
-router.get('/users', async (req, res, next) => {
+router.get('/users', ...admin, async (req, res, next) => {
     try {
         const role = req.query.role;
         const where = role ? { role } : {};
@@ -449,7 +287,7 @@ router.get('/users', async (req, res, next) => {
         next(err);
     }
 });
-router.get('/usuarios', async (req, res, next) => {
+router.get('/usuarios', ...admin, async (req, res, next) => {
     try {
         const users = await prisma_js_1.prisma.user.findMany({ orderBy: { name: 'asc' } });
         res.json(users.map(mapUser));
@@ -458,7 +296,7 @@ router.get('/usuarios', async (req, res, next) => {
         next(err);
     }
 });
-router.get('/usuarios/alunos', async (req, res, next) => {
+router.get('/usuarios/alunos', ...admin, async (req, res, next) => {
     try {
         const alunos = await prisma_js_1.prisma.user.findMany({
             where: { role: index_js_1.UserRole.ALUNO },
@@ -470,7 +308,7 @@ router.get('/usuarios/alunos', async (req, res, next) => {
         next(err);
     }
 });
-router.get('/usuarios/:id', async (req, res, next) => {
+router.get('/usuarios/:id', authMiddleware_js_1.authMiddleware, ownerOrAdmin('id'), async (req, res, next) => {
     try {
         const id = String(req.params.id);
         const user = await prisma_js_1.prisma.user.findUnique({ where: { id } });
@@ -482,13 +320,16 @@ router.get('/usuarios/:id', async (req, res, next) => {
         next(err);
     }
 });
-router.put('/usuarios/:id', async (req, res, next) => {
+router.put('/usuarios/:id', authMiddleware_js_1.authMiddleware, ownerOrAdmin('id'), async (req, res, next) => {
     try {
         const id = String(req.params.id);
-        const { nome } = req.body;
+        const { nome, novaSenha } = zod_1.z.object({
+            nome: zod_1.z.string().trim().min(3),
+            novaSenha: zod_1.z.string().min(6).optional(),
+        }).parse(req.body);
         const user = await prisma_js_1.prisma.user.update({
             where: { id },
-            data: { name: String(nome || '') },
+            data: { name: nome, ...(novaSenha && { passwordHash: await PasswordHasher_js_1.PasswordHasher.hash(novaSenha) }) },
         });
         res.json(mapUser(user));
     }
@@ -496,53 +337,68 @@ router.put('/usuarios/:id', async (req, res, next) => {
         next(err);
     }
 });
-router.post('/doacoes', upload.single('foto'), async (req, res, next) => {
+router.post('/doacoes', authMiddleware_js_1.authMiddleware, upload.single('foto'), async (req, res, next) => {
+    let evidenceFile;
     try {
         const alunoId = req.body.alunoId ? String(req.body.alunoId) : undefined;
         const matricula = req.body.matricula ? String(req.body.matricula) : '';
         const tipoItem = req.body.tipoItem ? String(req.body.tipoItem) : 'Doação Solidária';
-        const quantidade = Number(req.body.quantidade) || 1;
-        const campanhaId = req.body.campanhaId || req.body.campaignId ? String(req.body.campanhaId || req.body.campaignId) : undefined;
-        let validCampaignId = null;
+        const quantidade = zod_1.z.coerce.number().finite().positive().parse(req.body.quantidade);
+        const campanhaId = req.body.campanhaId || req.body.campaignId;
         if (campanhaId) {
-            const camp = await prisma_js_1.prisma.campaign.findUnique({ where: { id: campanhaId } });
-            if (camp) {
-                const autoStatus = (0, campaignRoutes_js_1.computeCampaignStatus)(camp.startDate, camp.endDate, camp.status);
-                if (autoStatus !== index_js_1.CampaignStatus.ACTIVE) {
-                    return res.status(400).json({
-                        erro: `Não é possível registrar doações para campanhas com status FUTURA ou ENCERRADA (status atual: ${autoStatus === index_js_1.CampaignStatus.FUTURE ? 'Futura' : 'Encerrada'}).`,
-                    });
-                }
-                validCampaignId = camp.id;
+            const campaign = await prisma_js_1.prisma.campaign.findUnique({ where: { id: String(campanhaId) } });
+            if (!campaign)
+                throw AppError_js_1.AppError.notFound('Campanha não encontrada.');
+            if ((0, campaignRoutes_js_1.computeCampaignStatus)(campaign.startDate, campaign.endDate, campaign.status) !== index_js_1.CampaignStatus.ACTIVE) {
+                throw AppError_js_1.AppError.badRequest('Esta campanha está fora do período de arrecadação.');
             }
         }
-        let targetUserId = alunoId;
-        if (!targetUserId && matricula) {
-            const user = await prisma_js_1.prisma.user.findFirst({
-                where: { OR: [{ cpf: matricula }, { email: matricula }] },
+        const actor = req.user;
+        let targetUserId = actor.userId;
+        if (alunoId || matricula) {
+            const student = await prisma_js_1.prisma.user.findFirst({
+                where: { id: alunoId, matricula: matricula || undefined, role: index_js_1.UserRole.ALUNO },
+                select: { id: true },
             });
-            if (user)
-                targetUserId = user.id;
+            if (!student)
+                throw AppError_js_1.AppError.notFound('Aluno não encontrado.');
+            if (actor.role !== index_js_1.UserRole.COPER && actor.userId !== student.id) {
+                throw AppError_js_1.AppError.forbidden('Apenas a COPER pode registrar doações em nome de outra pessoa.');
+            }
+            targetUserId = student.id;
         }
-        if (!targetUserId) {
-            const firstAluno = await prisma_js_1.prisma.user.findFirst({ where: { role: index_js_1.UserRole.ALUNO } });
-            targetUserId = firstAluno?.id;
-        }
-        if (!targetUserId) {
-            return res.status(400).json({ erro: 'Aluno não identificado para a doação.' });
+        const id = (0, node_crypto_1.randomUUID)();
+        let evidenceUrl = null;
+        if (req.file) {
+            const bytes = req.file.buffer;
+            const extension = bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])) ? 'jpg'
+                : bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')) ? 'png'
+                    : bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP' ? 'webp' : null;
+            if (!extension)
+                throw AppError_js_1.AppError.badRequest('Selecione uma imagem JPEG, PNG ou WebP.');
+            evidenceUrl = `/api/donations/${id}/evidence.${extension}`;
+            const folder = (0, node_path_1.resolve)('uploads', 'evidencias');
+            await (0, promises_1.mkdir)(folder, { recursive: true });
+            const path = (0, node_path_1.resolve)(folder, `${id}.${extension}`);
+            await (0, promises_1.writeFile)(path, bytes, { flag: 'wx' });
+            evidenceFile = path;
         }
         const donation = await prisma_js_1.prisma.donation.create({
             data: {
+                id,
+                evidenceUrl,
                 userId: targetUserId,
                 status: index_js_1.DonationStatus.PENDING,
-                campaignId: validCampaignId,
+                campaignId: campanhaId || null,
+                receivedById: actor.role === index_js_1.UserRole.COPER ? actor.userId : null,
+                observation: req.body.localEntrega || null,
                 hoursEarned: 0,
                 items: {
                     create: [
                         {
                             description: tipoItem || 'Doação Solidária',
                             category: 'ALIMENTOS',
-                            quantity: Number(quantidade) || 1,
+                            quantity: quantidade,
                             unit: 'unidades',
                         },
                     ],
@@ -550,14 +406,15 @@ router.post('/doacoes', upload.single('foto'), async (req, res, next) => {
             },
             include: {
                 items: true,
-                user: { select: { name: true, cpf: true, email: true } },
+                user: { select: { name: true, matricula: true, email: true } },
                 campaign: { select: { id: true, title: true } },
             },
         });
+        evidenceFile = undefined;
         res.status(201).json({
             id: donation.id,
             aluno: donation.user.name,
-            matricula: donation.user.cpf,
+            matricula: donation.user.matricula,
             item: donation.items[0]?.description,
             quantidade: donation.items[0]?.quantity,
             campanha: donation.campaign?.title || null,
@@ -566,15 +423,69 @@ router.post('/doacoes', upload.single('foto'), async (req, res, next) => {
         });
     }
     catch (err) {
+        if (evidenceFile)
+            await (0, promises_1.unlink)(evidenceFile).catch(() => { });
         next(err);
     }
 });
-router.get('/doacoes', async (req, res, next) => {
+router.put('/doacoes/:id', ...admin, async (req, res, next) => {
     try {
+        const id = String(req.params.id);
+        const form = zod_1.z.object({
+            tipoItem: zod_1.z.string().trim().min(2), quantidade: zod_1.z.coerce.number().finite().positive(),
+            matricula: zod_1.z.string().trim().optional(), itemId: zod_1.z.string().optional(),
+        }).parse(req.body);
+        await prisma_js_1.prisma.$transaction(async (tx) => {
+            await tx.$queryRaw `SELECT id FROM donations WHERE id = ${id} FOR UPDATE`;
+            const donation = await tx.donation.findUniqueOrThrow({ where: { id }, include: { items: true } });
+            if (donation.status !== index_js_1.DonationStatus.PENDING)
+                throw AppError_js_1.AppError.conflict('Somente doações pendentes podem ser editadas.');
+            const item = form.itemId ? donation.items.find(i => i.id === form.itemId) : donation.items[0];
+            if (!item)
+                throw AppError_js_1.AppError.notFound('Item não encontrado nesta doação.');
+            if (form.matricula) {
+                const student = await tx.user.findUnique({ where: { matricula: form.matricula } });
+                if (!student || student.role !== index_js_1.UserRole.ALUNO)
+                    throw AppError_js_1.AppError.notFound('Matrícula não encontrada.');
+                if (student.id !== donation.userId) {
+                    await tx.donation.update({ where: { id }, data: { userId: student.id, donorName: null, donorCpf: null } });
+                }
+            }
+            await tx.donationItem.update({ where: { id: item.id }, data: { description: form.tipoItem, quantity: form.quantidade } });
+        });
+        res.sendStatus(204);
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.delete('/doacoes/:id', ...admin, async (req, res, next) => {
+    try {
+        const id = String(req.params.id);
+        const removed = await prisma_js_1.prisma.donation.delete({
+            where: { id, status: index_js_1.DonationStatus.PENDING }, select: { evidenceUrl: true },
+        });
+        const ext = removed.evidenceUrl?.match(/\/evidence\.(jpg|png|webp)$/)?.[1];
+        if (ext && removed.evidenceUrl === `/api/donations/${id}/evidence.${ext}`) {
+            await (0, promises_1.unlink)((0, node_path_1.resolve)('uploads', 'evidencias', `${id}.${ext}`)).catch(err => {
+                if (err.code !== 'ENOENT')
+                    console.error('Falha ao remover evidência da doação', id);
+            });
+        }
+        res.sendStatus(204);
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.get('/doacoes', authMiddleware_js_1.authMiddleware, async (req, res, next) => {
+    try {
+        const actor = req.user;
         const donations = await prisma_js_1.prisma.donation.findMany({
+            where: actor.role === index_js_1.UserRole.COPER ? {} : { userId: actor.userId },
             include: {
                 items: true,
-                user: { select: { name: true, cpf: true, email: true } },
+                user: { select: { name: true, matricula: true, email: true } },
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -582,7 +493,7 @@ router.get('/doacoes', async (req, res, next) => {
             id: d.id,
             data: d.createdAt.toLocaleDateString('pt-BR'),
             aluno: d.user.name,
-            matricula: d.user.cpf,
+            matricula: d.user.matricula,
             item: d.items[0]?.description || 'Doação Diversa',
             quantidade: d.items[0]?.quantity || 1,
             horas: d.hoursEarned,
@@ -593,7 +504,7 @@ router.get('/doacoes', async (req, res, next) => {
         next(err);
     }
 });
-router.get('/doacoes/aluno/:alunoId', async (req, res, next) => {
+router.get('/doacoes/aluno/:alunoId', authMiddleware_js_1.authMiddleware, ownerOrAdmin('alunoId'), async (req, res, next) => {
     try {
         const alunoId = String(req.params.alunoId);
         const donations = await prisma_js_1.prisma.donation.findMany({
@@ -606,7 +517,7 @@ router.get('/doacoes/aluno/:alunoId', async (req, res, next) => {
             },
             include: {
                 items: true,
-                user: { select: { name: true, cpf: true, email: true } },
+                user: { select: { name: true, matricula: true, email: true } },
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -614,7 +525,7 @@ router.get('/doacoes/aluno/:alunoId', async (req, res, next) => {
             id: d.id,
             data: d.createdAt.toLocaleDateString('pt-BR'),
             aluno: d.user.name,
-            matricula: d.user.cpf,
+            matricula: d.user.matricula,
             item: d.items[0]?.description || 'Doação Diversa',
             quantidade: d.items[0]?.quantity || 1,
             horas: d.hoursEarned,

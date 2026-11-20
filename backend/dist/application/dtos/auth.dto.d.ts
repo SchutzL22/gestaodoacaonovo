@@ -1,8 +1,8 @@
 import { z } from 'zod';
 export declare const registerSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<{
     name: z.ZodString;
-    email: z.ZodString;
-    cpf: z.ZodEffects<z.ZodString, string, string>;
+    email: z.ZodEffects<z.ZodString, string, string>;
+    cpf: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
     password: z.ZodString;
     role: z.ZodDefault<z.ZodNativeEnum<{
         ALUNO: "ALUNO";

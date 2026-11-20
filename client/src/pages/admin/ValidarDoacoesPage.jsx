@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCircleCheck, faCircleXmark, faPenToSquare, faTrash, faXmark, faFloppyDisk
 } from '@fortawesome/free-solid-svg-icons';
-import { listarDoacoes, validarDoacao, editarDoacao, deletarDoacao } from '../../services/api';
+import api, { listarDoacoes, validarDoacao, editarDoacao, deletarDoacao } from '../../services/api';
 import toast from 'react-hot-toast';
 
 function StatusBadge({ status }) {
@@ -29,31 +29,47 @@ export default function ValidarDoacoesPage() {
     setLoading(true);
     try {
       setDoacoes(await listarDoacoes());
-    } catch (err) { toast.error('Erro ao carregar doações.'); }
+    } catch { toast.error('Erro ao carregar doações.'); }
     finally { setLoading(false); }
   }
 
   async function handleValidar(id, status) {
     let motivoReprovacao = '';
     if (status === 'REPROVADA') {
-      motivoReprovacao = window.prompt('Informe o motivo da reprovação:') || '';
+      const motivo = window.prompt('Informe o motivo da reprovação:');
+      if (motivo === null) return;
+      motivoReprovacao = motivo.trim();
+      if (!motivoReprovacao) { toast.error('Informe o motivo da reprovação.'); return; }
     }
     try {
-      const updated = await validarDoacao(id, status, motivoReprovacao);
-      setDoacoes(ds => ds.map(d => d.id === id ? updated : d));
+      await validarDoacao(id, status, motivoReprovacao);
+      await carregar();
       toast.success(`Doação ${status === 'APROVADA' ? 'aprovada' : 'reprovada'}!`);
-    } catch (err) { toast.error(err?.response?.data?.erro || 'Erro ao validar.'); }
+    } catch (err) { toast.error(err?.response?.data?.message || 'Erro ao validar.'); }
+  }
+
+  async function baixarFoto(doacao) {
+    try {
+      const { data } = await api.get(doacao.evidenceUrl.slice('/api'.length), { responseType: 'blob' });
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = doacao.evidenceUrl.split('/').pop().replace('evidence', 'evidencia');
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { toast.error('Erro ao baixar a foto.'); }
   }
 
   async function handleEditar(e) {
     e.preventDefault();
     try {
-      const updated = await editarDoacao(editando.id, {
+      await editarDoacao(editando.id, {
         quantidade: Number(editForm.quantidade),
         tipoItem: editForm.tipoItem,
+        itemId: editando.items?.[0]?.id,
         matricula: editForm.matricula
       });
-      setDoacoes(ds => ds.map(d => d.id === editando.id ? updated : d));
+      await carregar();
       setEditando(null);
       toast.success('Doação atualizada!');
     } catch (err) { toast.error(err?.response?.data?.erro || 'Erro ao editar.'); }
@@ -65,12 +81,12 @@ export default function ValidarDoacoesPage() {
       await deletarDoacao(id);
       setDoacoes(ds => ds.filter(d => d.id !== id));
       toast.success('Doação removida!');
-    } catch (err) { toast.error('Erro ao remover.'); }
+    } catch { toast.error('Erro ao remover.'); }
   }
 
   function abrirEditar(doacao) {
     setEditando(doacao);
-    setEditForm({ matricula: doacao.matricula || '', tipoItem: doacao.tipoItem, quantidade: doacao.quantidade });
+    setEditForm({ matricula: doacao.matricula || '', tipoItem: doacao.item, quantidade: doacao.quantidade });
   }
 
   return (
@@ -98,19 +114,21 @@ export default function ValidarDoacoesPage() {
                     <div style={{ fontWeight: 600 }}>{d.aluno || '—'}</div>
                     {d.matricula && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>#{d.matricula}</div>}
                   </td>
-                  <td>{d.item}</td>
+                  <td>{d.item}
+                    {d.evidenceUrl?.startsWith(`/api/donations/${d.id}/evidence.`) &&
+                      <button type="button" onClick={() => baixarFoto(d)}>Baixar foto</button>}
+                  </td>
                   <td>{d.quantidade}</td>
                   <td><StatusBadge status={d.status} /></td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                       {d.status === 'Pendente' && <>
-                        <button className="btn-success" onClick={() => handleValidar(d.id, 'APROVADA')}>
+                        <button className="btn-success" aria-label="Aprovar doação" onClick={() => handleValidar(d.id, 'APROVADA')}>
                           <FontAwesomeIcon icon={faCircleCheck} />
                         </button>
-                        <button className="btn-danger" onClick={() => handleValidar(d.id, 'REPROVADA')}>
+                        <button className="btn-danger" aria-label="Reprovar doação" onClick={() => handleValidar(d.id, 'REPROVADA')}>
                           <FontAwesomeIcon icon={faCircleXmark} />
                         </button>
-                      </>}
                       <button className="btn-icon" title="Editar" onClick={() => abrirEditar(d)}
                         style={{ color: 'var(--primary)' }}>
                         <FontAwesomeIcon icon={faPenToSquare} />
@@ -119,6 +137,7 @@ export default function ValidarDoacoesPage() {
                         style={{ color: 'var(--danger)' }}>
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
+                      </>}
                     </div>
                   </td>
                 </tr>

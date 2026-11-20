@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faHandHoldingHeart, faEnvelope, faLock, faEye, faEyeSlash,
-  faUser, faIdCard, faGraduationCap, faBook, faUserPlus, faKey,
+  faEnvelope, faLock, faEye, faEyeSlash,
+  faUser, faIdCard, faGraduationCap, faUserPlus, faKey,
   faUserCheck, faArrowLeft, faMagnifyingGlass, faRightToBracket,
   faChalkboardTeacher, faBriefcase, faUsers, faShieldHalved
 } from '@fortawesome/free-solid-svg-icons';
 import toast from 'react-hot-toast';
-import { login, cadastrarAluno, listarAlunos, atualizarPerfil } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { login, cadastrarAluno, solicitarRecuperacao, redefinirSenha } from '../services/api';
+import { useAuth } from '../context/useAuth';
+import { paginaInicial } from '../context/perfis';
 import fmpLogo from '../assets/fmplogo.png';
 import './LoginPage.css';
 
@@ -17,11 +18,11 @@ const PAINEL = { LOGIN: 'login', CADASTRO: 'cadastro', ESQUECI: 'esqueci' };
 
 // Perfis RBAC suportados
 const PERFIS = [
-  { id: 'ALUNO', label: 'Aluno', icon: faGraduationCap, hint: 'Acesso a horas e campanhas', defaultEmail: 'lucas.aluno@aluno.coper.edu.br', defaultPass: 'aluno123' },
-  { id: 'PROFESSOR', label: 'Professor', icon: faChalkboardTeacher, hint: 'Chamada e turmas', defaultEmail: 'professor.libras@coper.edu.br', defaultPass: 'prof123' },
-  { id: 'COPER', label: 'COPER / Admin', icon: faShieldHalved, hint: 'Gestão completa', defaultEmail: 'coper@coper.edu.br', defaultPass: 'admin123' },
-  { id: 'EMPRESARIO', label: 'Empresário', icon: faBriefcase, hint: 'Painel ESG e impacto', defaultEmail: 'contato@techparceira.com.br', defaultPass: 'empresa123' },
-  { id: 'CIVIL', label: 'Civil', icon: faUsers, hint: 'Comunidade e doador', defaultEmail: 'contato@techparceira.com.br', defaultPass: 'empresa123' }
+  { id: 'ALUNO', label: 'Aluno', icon: faGraduationCap, hint: 'Acesso a horas e campanhas', defaultEmail: 'lucas.schutz@aluno.fmpsc.edu.br', defaultPass: 'Aluno@2026' },
+  { id: 'PROFESSOR', label: 'Professor', icon: faChalkboardTeacher, hint: 'Chamada e turmas', defaultEmail: 'prof.libras@fmpsc.edu.br', defaultPass: 'Prof@2026' },
+  { id: 'COPER', label: 'COPER / Admin', icon: faShieldHalved, hint: 'Gestão completa', defaultEmail: 'coper@fmpsc.edu.br', defaultPass: 'Coper@2026' },
+  { id: 'EMPRESARIO', label: 'Empresário', icon: faBriefcase, hint: 'Painel ESG e impacto', defaultEmail: 'parceiro@empresa.com.br', defaultPass: 'Empresa@2026' },
+  { id: 'CIVIL', label: 'Civil', icon: faUsers, hint: 'Comunidade e doador', defaultEmail: 'civil@gmail.com', defaultPass: 'Civil@2026' }
 ];
 
 export default function LoginPage() {
@@ -35,16 +36,16 @@ export default function LoginPage() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   // Login
-  const [email, setEmail] = useState('coper@coper.edu.br');
-  const [senha, setSenha] = useState('admin123');
+  const [email, setEmail] = useState(import.meta.env.DEV ? 'coper@fmpsc.edu.br' : '');
+  const [senha, setSenha] = useState(import.meta.env.DEV ? 'Coper@2026' : '');
 
   // Cadastro
-  const [cad, setCad] = useState({ nome: '', cpf: '', email: '', matricula: '', curso: '', senha: '', confirmarSenha: '' });
+  const [cad, setCad] = useState({ nome: '', cpf: '', email: '', matricula: '', senha: '', confirmarSenha: '' });
 
   // Esqueci Senha
   const [recEmail, setRecEmail] = useState('');
   const [recNovaSenha, setRecNovaSenha] = useState('');
-  const [recUsuario, setRecUsuario] = useState(null);
+  const [codigo, setCodigo] = useState('');
   const [etapaRec, setEtapaRec] = useState(1);
 
   function limpar() { setErro(''); setSucesso(''); }
@@ -72,19 +73,7 @@ export default function LoginPage() {
       entrar(usuario);
       toast.success(`Bem-vindo(a), ${usuario.nome || 'Usuário'}!`);
 
-      // Redirecionamento RBAC dinâmico
-      const roleUpper = (usuario.role || usuario.tipo || '').toUpperCase();
-      if (roleUpper === 'COPER' || roleUpper === 'ADMIN' || usuario.tipo === 'admin') {
-        navigate('/dashboard', { replace: true });
-      } else if (roleUpper === 'PROFESSOR' || usuario.tipo === 'professor') {
-        navigate('/chamada', { replace: true });
-      } else if (roleUpper === 'EMPRESARIO' || usuario.tipo === 'empresario') {
-        navigate('/painel-impacto', { replace: true });
-      } else if (roleUpper === 'CIVIL') {
-        navigate('/impacto-social', { replace: true });
-      } else {
-        navigate('/meu-painel', { replace: true });
-      }
+      navigate(paginaInicial(usuario), { replace: true });
     } catch (err) {
       console.error(err);
       setErro(err?.response?.data?.message || err?.response?.data?.erro || err.message || 'Credenciais inválidas. Verifique seu e-mail e senha.');
@@ -98,8 +87,8 @@ export default function LoginPage() {
   async function handleCadastro(e) {
     e.preventDefault();
     limpar();
-    const { nome, cpf, email: cEmail, matricula, curso, senha: cSenha, confirmarSenha } = cad;
-    if (!nome || !cEmail || !matricula || !cSenha) {
+    const { nome, cpf, email: cEmail, matricula, senha: cSenha, confirmarSenha } = cad;
+    if (!nome || !cpf || !cEmail || !matricula || !cSenha) {
       setErro('Preencha todos os campos obrigatórios.');
       return;
     }
@@ -114,14 +103,14 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await cadastrarAluno({ nome, cpf, email: cEmail, matricula, curso, senha: cSenha });
+      await cadastrarAluno({ nome, cpf, email: cEmail, matricula, senha: cSenha });
       setSucesso('Conta de estudante criada com sucesso! Você já pode fazer login.');
       toast.success('Cadastro realizado com sucesso!');
       setPainel(PAINEL.LOGIN);
       setEmail(cEmail);
       setSenha('');
     } catch (err) {
-      setErro(err?.response?.data?.erro || err.message || 'Erro ao cadastrar.');
+      setErro(err?.response?.data?.details?.[0]?.message || err?.response?.data?.message || 'Erro ao cadastrar.');
     } finally {
       setLoading(false);
     }
@@ -134,17 +123,11 @@ export default function LoginPage() {
     if (!recEmail) { setErro('Informe o e-mail cadastrado.'); return; }
     setLoading(true);
     try {
-      const alunos = await listarAlunos();
-      const encontrado = alunos.find(a => a.email?.toLowerCase() === recEmail.toLowerCase());
-      if (!encontrado) {
-        setErro('E-mail não localizado na base de alunos.');
-        setLoading(false);
-        return;
-      }
-      setRecUsuario(encontrado);
+      const resposta = await solicitarRecuperacao(recEmail.trim());
+      setSucesso(resposta.message);
       setEtapaRec(2);
     } catch (err) {
-      setErro('Erro ao buscar usuário.');
+      setErro(err.response?.data?.message || 'Erro ao solicitar recuperação.');
     } finally {
       setLoading(false);
     }
@@ -159,15 +142,15 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await atualizarPerfil(recUsuario.id, recUsuario.nome, recNovaSenha);
+      await redefinirSenha(codigo.trim(), recNovaSenha);
       setSucesso('Senha redefinida com sucesso! Faça login com a nova senha.');
       toast.success('Senha atualizada com sucesso!');
       setPainel(PAINEL.LOGIN);
-      setEmail(recUsuario.email);
-      setSenha(recNovaSenha);
-      setRecEmail(''); setRecNovaSenha(''); setRecUsuario(null); setEtapaRec(1);
+      setEmail(recEmail.trim());
+      setSenha('');
+      setRecEmail(''); setRecNovaSenha(''); setCodigo(''); setEtapaRec(1);
     } catch (err) {
-      setErro('Erro ao redefinir senha.');
+      setErro(err.response?.data?.message || 'Erro ao redefinir senha.');
     } finally {
       setLoading(false);
     }
@@ -193,8 +176,8 @@ export default function LoginPage() {
             </div>
 
             {/* Seletor Dinâmico de Perfil RBAC */}
-            <div className="profile-selector-area">
-              <span className="profile-selector-title">Selecione o Perfil de Acesso:</span>
+            {import.meta.env.DEV && <div className="profile-selector-area">
+              <span className="profile-selector-title">Contas de demonstração</span>
               <div className="profile-pills-row">
                 {PERFIS.map(p => (
                   <button
@@ -208,7 +191,7 @@ export default function LoginPage() {
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {erro && <div className="login-error">{erro}</div>}
             {sucesso && <div className="login-success">{sucesso}</div>}
@@ -255,57 +238,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demonstração Rápida com Credenciais Pré-configuradas */}
-            <div className="demo-credentials-card">
-              <span className="demo-title">Credenciais de Teste Rápido:</span>
-              <div className="demo-chips">
-                <button
-                  type="button"
-                  className="demo-chip"
-                  onClick={() => {
-                    setPerfilSelecionado('COPER');
-                    setEmail('coper@coper.edu.br');
-                    setSenha('admin123');
-                  }}
-                >
-                  Admin (COPER)
-                </button>
-                <button
-                  type="button"
-                  className="demo-chip"
-                  onClick={() => {
-                    setPerfilSelecionado('ALUNO');
-                    setEmail('lucas.aluno@aluno.coper.edu.br');
-                    setSenha('aluno123');
-                  }}
-                >
-                  Aluno (Lucas)
-                </button>
-                <button
-                  type="button"
-                  className="demo-chip"
-                  onClick={() => {
-                    setPerfilSelecionado('ALUNO');
-                    setEmail('mariana.aluna@aluno.coper.edu.br');
-                    setSenha('aluno123');
-                  }}
-                >
-                  Aluna (Mariana)
-                </button>
-                <button
-                  type="button"
-                  className="demo-chip"
-                  onClick={() => {
-                    setPerfilSelecionado('PROFESSOR');
-                    setEmail('professor.libras@coper.edu.br');
-                    setSenha('prof123');
-                  }}
-                >
-                  Professor (Libras)
-                </button>
-              </div>
-            </div>
-
             <div className="login-links">
               <button className="link-btn" onClick={() => { limpar(); setPainel(PAINEL.ESQUECI); }}>
                 Esqueci minha senha
@@ -337,7 +269,6 @@ export default function LoginPage() {
                 { icon: faIdCard, key: 'cpf', placeholder: 'CPF (somente números)', type: 'text' },
                 { icon: faEnvelope, key: 'email', placeholder: 'E-mail institucional (@aluno.fmpsc.edu.br)', type: 'email' },
                 { icon: faGraduationCap, key: 'matricula', placeholder: 'Número de Matrícula FMP', type: 'text' },
-                { icon: faBook, key: 'curso', placeholder: 'Curso (ex: Análise e Desenvolvimento de Sistemas)', type: 'text' },
                 { icon: faLock, key: 'senha', placeholder: 'Senha de acesso (mín. 6 dígitos)', type: 'password' },
                 { icon: faLock, key: 'confirmarSenha', placeholder: 'Confirme a senha', type: 'password' },
               ].map(f => (
@@ -376,8 +307,8 @@ export default function LoginPage() {
               <h1>Recuperação de Senha</h1>
               <p>
                 {etapaRec === 1
-                  ? 'Informe seu e-mail institucional'
-                  : `Redefinir acesso para: ${recUsuario?.nome}`}
+                  ? 'Informe o e-mail cadastrado.'
+                  : 'Informe o código recebido por e-mail e a nova senha.'}
               </p>
             </div>
 
@@ -390,7 +321,7 @@ export default function LoginPage() {
                   <FontAwesomeIcon icon={faEnvelope} className="input-icon" />
                   <input
                     type="email"
-                    placeholder="E-mail institucional (@aluno.fmpsc.edu.br)"
+                    placeholder="E-mail cadastrado"
                     value={recEmail}
                     onChange={e => setRecEmail(e.target.value)}
                     required
@@ -398,11 +329,16 @@ export default function LoginPage() {
                 </div>
                 <button className="btn-login" type="submit" disabled={loading}>
                   {loading ? <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : <FontAwesomeIcon icon={faMagnifyingGlass} />}
-                  <span>{loading ? 'Localizando conta...' : 'Buscar Aluno'}</span>
+                  <span>{loading ? 'Enviando...' : 'Enviar código'}</span>
                 </button>
               </form>
             ) : (
               <form onSubmit={handleRedefinirSenha}>
+                <div className="input-group">
+                  <FontAwesomeIcon icon={faKey} className="input-icon" />
+                  <input aria-label="Código de recuperação" placeholder="Código recebido por e-mail"
+                    value={codigo} onChange={e => setCodigo(e.target.value)} required autoComplete="one-time-code" />
+                </div>
                 <div className="input-group">
                   <FontAwesomeIcon icon={faLock} className="input-icon" />
                   <input
@@ -422,7 +358,7 @@ export default function LoginPage() {
             )}
 
             <div className="login-links">
-              <button className="link-btn" onClick={() => { limpar(); setPainel(PAINEL.LOGIN); setEtapaRec(1); setRecUsuario(null); }}>
+              <button className="link-btn" onClick={() => { limpar(); setPainel(PAINEL.LOGIN); setEtapaRec(1); setCodigo(''); }}>
                 <FontAwesomeIcon icon={faArrowLeft} /> Voltar ao login
               </button>
             </div>

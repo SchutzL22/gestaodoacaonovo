@@ -7,26 +7,24 @@ exports.ForgotPasswordUseCase = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const prisma_js_1 = require("../../../infrastructure/database/prisma.js");
 const AppError_js_1 = require("../../../domain/errors/AppError.js");
+const MailService_js_1 = require("../../../infrastructure/mail/MailService.js");
 class ForgotPasswordUseCase {
     async execute(email) {
+        if (!process.env.SMTP_USER || !process.env.SMTP_PASS || process.env.SMTP_USER === 'your_smtp_user_here') {
+            throw new AppError_js_1.AppError('Envio de e-mail indisponível. Contate a COPER para recuperar o acesso.', 503);
+        }
         const user = await prisma_js_1.prisma.user.findUnique({ where: { email } });
         if (!user) {
             return { message: 'Se este e-mail estiver cadastrado, você receberá as instruções em breve.' };
         }
-        await prisma_js_1.prisma.passwordResetToken?.deleteMany({
-            where: { userId: user.id, usedAt: null },
-        }).catch(() => { });
         const token = crypto_1.default.randomBytes(32).toString('hex');
+        const tokenHash = 'sha256:' + crypto_1.default.createHash('sha256').update(token).digest('hex');
         const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-        try {
-            await prisma_js_1.prisma.passwordResetToken.create({
-                data: { token, userId: user.id, expiresAt },
-            });
-        }
-        catch {
-            throw AppError_js_1.AppError.internal('Serviço de recuperação de senha temporariamente indisponível.');
-        }
-        console.log(`[ForgotPassword] Token para ${user.email}: ${token} (expira em 1h)`);
+        await prisma_js_1.prisma.$transaction([
+            prisma_js_1.prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } }),
+            prisma_js_1.prisma.passwordResetToken.create({ data: { token: tokenHash, userId: user.id, expiresAt } }),
+        ]);
+        await MailService_js_1.MailService.sendPasswordResetCode(user.email, token);
         return { message: 'Se este e-mail estiver cadastrado, você receberá as instruções em breve.' };
     }
 }

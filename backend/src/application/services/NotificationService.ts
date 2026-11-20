@@ -57,10 +57,7 @@ export class NotificationService {
   }
 
   static getUserNotifications(userId: string): NotificationItem[] {
-    // Retorna notificações do usuário ou notificações globais/seed se em desenvolvimento
-    return this.notifications.filter(
-      (n) => n.userId === userId || n.userId === 'usr-student-001' || userId === 'default'
-    );
+    return this.notifications.filter((n) => n.userId === userId);
   }
 
   static markAsRead(notificationId: string, userId?: string): boolean {

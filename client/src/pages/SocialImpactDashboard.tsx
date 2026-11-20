@@ -14,9 +14,7 @@ import {
   CheckCircle2,
   ArrowLeft,
   LogIn,
-  BarChart3,
   RefreshCw,
-  Filter,
 } from 'lucide-react';
 import {
   ResponsiveContainer,

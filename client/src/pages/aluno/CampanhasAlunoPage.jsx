@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HeartHandshake, Calendar, Target, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { HeartHandshake, Calendar, Clock, ArrowRight, Loader2 } from 'lucide-react';
 import { listarCampanhas } from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -97,7 +97,6 @@ export default function CampanhasAlunoPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {campanhasFiltradas.map((c) => {
             const st = STATUS_LABEL[c.status] || STATUS_LABEL.ACTIVE;
-            const isAtiva = st.text === 'Ativa';
             const isFutura = st.text === 'Futura';
             const isEncerrada = st.text === 'Encerrada';
 

@@ -1,22 +1,21 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-
-const AuthContext = createContext(null);
+import { useState } from 'react';
+import { AuthContext } from './useAuth';
+import { clearSessao, getSessao, logout, setSessao } from '../services/api';
 
 export function AuthProvider({ children }) {
-  const [usuario, setUsuario] = useState(() => {
-    try {
-      const raw = localStorage.getItem('coper_sessao');
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  });
+  const [usuario, setUsuario] = useState(getSessao);
 
   function entrar(user) {
-    localStorage.setItem('coper_sessao', JSON.stringify(user));
+    setSessao(user);
     setUsuario(user);
   }
 
-  function sair() {
-    localStorage.removeItem('coper_sessao');
+  async function sair() {
+    try {
+      await logout();
+    } catch {
+      clearSessao();
+    }
     setUsuario(null);
   }
 
@@ -25,8 +24,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

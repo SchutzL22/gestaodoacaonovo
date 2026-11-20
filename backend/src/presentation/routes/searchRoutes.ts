@@ -1,12 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../infrastructure/database/prisma.js';
-import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { authMiddleware, AuthenticatedRequest } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 router.use(authMiddleware);
 
 // 🔍 Barra de Pesquisa Global: busca unificada por Alunos, Campanhas e Doações
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const q = String(req.query.q || '').trim();
     if (!q || q.length < 2) {
@@ -14,6 +14,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       return;
     }
 
+    const user = req.user!;
+    const admin = user.role === 'COPER';
     const cleanCpf = q.replace(/\D/g, '');
 
     const [students, campaigns, donations] = await Promise.all([
@@ -21,6 +23,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       prisma.user.findMany({
         where: {
           role: 'ALUNO',
+          ...(!admin && { id: user.userId }),
           OR: [
             { name: { contains: q, mode: 'insensitive' } },
             { matricula: { contains: q, mode: 'insensitive' } },
@@ -59,6 +62,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       // 3. Busca Doações por Doador, Hash ou Itens Doados
       prisma.donation.findMany({
         where: {
+          ...(!admin && { userId: user.userId }),
           OR: [
             { donorName: { contains: q, mode: 'insensitive' } },
             { authHash: { contains: q, mode: 'insensitive' } },

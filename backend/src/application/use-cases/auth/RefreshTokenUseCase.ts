@@ -5,9 +5,8 @@ import { UserRole } from '../../../domain/enums/index.js';
 
 export class RefreshTokenUseCase {
   async execute(refreshToken: string) {
-    let payload;
     try {
-      payload = TokenService.verifyRefreshToken(refreshToken);
+      TokenService.verifyRefreshToken(refreshToken);
     } catch {
       throw AppError.unauthorized('Refresh token inválido ou expirado.');
     }
@@ -21,11 +20,9 @@ export class RefreshTokenUseCase {
       throw AppError.unauthorized('Refresh token revogado ou inexistente.');
     }
 
-    // Revoga o refresh token usado (token rotation)
-    await prisma.refreshToken.update({
-      where: { id: storedToken.id },
-      data: { revoked: true },
-    });
+    if (!storedToken.user.isActive) {
+      throw AppError.unauthorized('Conta inativa.');
+    }
 
     // Gera novos tokens
     const newAccessToken = TokenService.generateAccessToken({
@@ -43,12 +40,15 @@ export class RefreshTokenUseCase {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await prisma.refreshToken.create({
-      data: {
-        token: newRefreshToken,
-        userId: storedToken.user.id,
-        expiresAt,
-      },
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.refreshToken.updateMany({
+        where: { id: storedToken.id, revoked: false, expiresAt: { gt: new Date() } },
+        data: { revoked: true },
+      });
+      if (!claimed.count) throw AppError.unauthorized('Sessão expirada.');
+      await tx.refreshToken.create({
+        data: { token: newRefreshToken, userId: storedToken.user.id, expiresAt },
+      });
     });
 
     return {

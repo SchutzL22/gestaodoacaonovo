@@ -18,11 +18,14 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-:: 2. Limpeza prévia de processos presos nas portas 3001 e 5173
+:: Verifica se as portas estao livres antes de abrir os servidores.
 echo [1/4] Verificando portas do sistema...
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$ports = @(3001, 5173); foreach ($port in $ports) { $conns = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue; if ($conns) { foreach ($c in $conns) { try { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue; Write-Host ('  - Porta ' + $port + ' liberada (PID ' + $c.OwningProcess + ').') } catch {} } } }"
-echo   - Portas 3001 e 5173 prontas.
+powershell -NoProfile -Command "$ports = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners().Port; if (($ports -contains 3001) -or ($ports -contains 5173)) { exit 1 }"
+if errorlevel 1 (
+    echo [AVISO] A porta 3001 ou 5173 esta em uso. Confira se o COPER ja esta aberto.
+    pause
+    exit /b 1
+)
 
 :: 3. Verifica serviço do PostgreSQL
 echo.
@@ -30,7 +33,7 @@ echo [2/4] Verificando banco de dados PostgreSQL...
 sc query postgresql-x64-18 >nul 2>nul
 if %errorlevel% equ 0 (
     sc query postgresql-x64-18 | find "RUNNING" >nul 2>nul
-    if %errorlevel% neq 0 (
+    if errorlevel 1 (
         echo   - Iniciando o serviço postgresql-x64-18...
         net start postgresql-x64-18 >nul 2>nul
     ) else (
@@ -47,6 +50,7 @@ if not exist "%~dp0backend\node_modules" (
     echo   - Instalando dependências em backend...
     cd /d "%~dp0backend"
     call npm install
+    if errorlevel 1 exit /b 1
     cd /d "%~dp0"
 ) else (
     echo   - Dependências do Backend já instaladas.
@@ -57,6 +61,7 @@ if not exist "%~dp0client\node_modules" (
     echo   - Instalando dependências em client...
     cd /d "%~dp0client"
     call npm install
+    if errorlevel 1 exit /b 1
     cd /d "%~dp0"
 ) else (
     echo   - Dependências do Frontend já instaladas.
@@ -89,16 +94,8 @@ echo.
 echo   • Frontend:  http://localhost:5173
 echo   • API:       http://localhost:3001
 echo.
-echo   Credenciais de Teste:
-echo   - Admin (COPER): coper@coper.edu.br  (ou admin@fmpsc.edu.br)  /  admin123
-echo   - Aluno (Lucas): lucas.aluno@aluno.coper.edu.br  /  aluno123
-echo   - Aluna (Mariana): mariana.aluna@aluno.coper.edu.br  /  aluno123
-echo   - Professor: professor.libras@coper.edu.br  /  prof123
-echo   - Empresário: contato@techparceira.com.br  /  empresa123
-echo.
-echo   Códigos de Validação Pública (Certificados):
-echo   - tok-luc-001  (Lucas - Declaração de Alimentos)
-echo   - tok-edu-001  (Mariana - Declaração de Agasalho)
+echo   Use o seletor de contas de demonstracao na tela de login.
+echo   As credenciais e os codigos de validacao estao no README.md.
 echo.
 echo Mantenha as janelas do Backend e Frontend abertas enquanto usa o sistema.
 echo Para fechar tudo, use o script "parar.bat".

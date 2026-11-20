@@ -57,7 +57,7 @@ export class ValidateCertificateUseCase {
     });
 
     if (certificate) {
-      const rawCpf = certificate.user.cpf;
+      const rawCpf = certificate.donation?.donorCpf || certificate.user.cpf;
       const maskedCpf =
         rawCpf && rawCpf.length === 11
           ? `***.${rawCpf.substring(3, 6)}.${rawCpf.substring(6, 9)}-**`
@@ -82,8 +82,8 @@ export class ValidateCertificateUseCase {
         documentType: certificate.type,
         documentTypeName: docTypeName,
         isStudent,
-        holderName: certificate.user.name,
-        beneficiaryName: certificate.user.name,
+        holderName: certificate.donation?.donorName || certificate.user.name,
+        beneficiaryName: certificate.donation?.donorName || certificate.user.name,
         holderCpfMasked: maskedCpf,
         beneficiaryCpfMasked: maskedCpf,
         title: certificate.title,

@@ -128,11 +128,7 @@ router.get('/:id', async (req, res, next) => {
             where: { id },
             include: {
                 priorityItems: true,
-                donations: {
-                    take: 10,
-                    orderBy: { createdAt: 'desc' },
-                    include: { items: true, user: { select: { name: true, role: true } } },
-                },
+                _count: { select: { donations: true } },
             },
         });
         if (!campaign) {
@@ -190,10 +186,17 @@ router.put('/:id', authMiddleware_js_1.authMiddleware, (0, rbacMiddleware_js_1.r
             updatePayload.startDate = startDate ? new Date(startDate) : null;
         if (endDate !== undefined)
             updatePayload.endDate = endDate ? new Date(endDate) : null;
-        const existing = await prisma_js_1.prisma.campaign.findUnique({ where: { id }, select: { startDate: true, endDate: true } });
+        const existing = await prisma_js_1.prisma.campaign.findUnique({ where: { id }, select: { startDate: true, endDate: true, status: true } });
+        if (!existing)
+            throw AppError_js_1.AppError.notFound('Campanha não encontrada.');
         const newStart = updatePayload.startDate ?? existing?.startDate;
-        const newEnd = updatePayload.endDate ?? existing?.endDate;
-        updatePayload.status = computeCampaignStatus(newStart, newEnd);
+        const newEnd = endDate === undefined ? existing.endDate : updatePayload.endDate;
+        if (!newStart || (newEnd && newEnd < newStart))
+            throw AppError_js_1.AppError.badRequest('Período da campanha inválido.');
+        updatePayload.status = computeCampaignStatus(newStart, newEnd, existing.status);
+        if (priorityItems !== undefined) {
+            updatePayload.priorityItems = { deleteMany: {}, create: priorityItems };
+        }
         const campaign = await prisma_js_1.prisma.campaign.update({
             where: { id },
             data: updatePayload,

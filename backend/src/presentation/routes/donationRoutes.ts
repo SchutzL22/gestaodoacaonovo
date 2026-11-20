@@ -30,6 +30,7 @@ router.get('/my', donationController.list);
 router.get('/student/:studentId', donationController.listByStudent);
 
 // Download oficial do comprovante de doação em PDF (Aprovada)
+router.get('/:id/evidence.:ext', donationController.downloadEvidence);
 router.get('/:id/pdf', donationController.downloadPdf);
 
 // Obter detalhes de uma doação específica

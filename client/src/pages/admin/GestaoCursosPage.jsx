@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import {
+  Award,
   BookOpen,
   Users,
   PlusCircle,
@@ -162,7 +163,7 @@ export default function GestaoCursosPage() {
     try {
       const data = await buscarFilaEspera(turma.id);
       setFilaData(data);
-    } catch (err) {
+    } catch {
       toast.error('Erro ao carregar fila de espera em tempo real.');
     } finally {
       setLoadingFila(false);

@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { Role } from '../../domain/enums/index.js';
+import { requireRoles } from '../middlewares/rbacMiddleware.js';
 import rateLimit from 'express-rate-limit';
 import { AuthController } from '../controllers/AuthController.js';
 import { validate } from '../middlewares/validationMiddleware.js';
@@ -27,7 +29,12 @@ const authLimiter = rateLimit({
   },
 });
 
-router.post('/register', authLimiter, validate({ body: registerSchema }), authController.register);
+router.post('/register', authLimiter, validate({ body: registerSchema }), (req, res, next) => {
+  if (req.body.role === Role.COPER || req.body.role === Role.PROFESSOR) {
+    return authMiddleware(req, res, () => requireRoles(Role.COPER)(req, res, next));
+  }
+  next();
+}, authController.register);
 router.post('/login', authLimiter, validate({ body: loginSchema }), authController.login);
 router.post('/refresh', validate({ body: refreshTokenSchema }), authController.refreshToken);
 router.post('/logout', authController.logout);

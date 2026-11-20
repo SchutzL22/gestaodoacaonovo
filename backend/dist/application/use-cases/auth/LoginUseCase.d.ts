@@ -6,6 +6,7 @@ export declare class LoginUseCase {
             name: string;
             email: string;
             cpf: string;
+            matricula: string | null;
             role: import("@prisma/client").$Enums.UserRole;
             createdAt: Date;
         };

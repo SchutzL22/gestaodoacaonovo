@@ -5,6 +5,8 @@ import { ValidateDonationUseCase } from '../../application/use-cases/donations/V
 import { DownloadCertificatePDFUseCase } from '../../application/use-cases/certificates/DownloadCertificatePDFUseCase.js';
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { AppError } from '../../domain/errors/AppError.js';
+import { z } from 'zod';
+import { resolve } from 'node:path';
 import { UserRole } from '../../domain/enums/index.js';
 
 export class DonationController {
@@ -45,7 +47,7 @@ export class DonationController {
     try {
       if (!req.user) throw AppError.unauthorized();
       const id = req.params.id as string;
-      const hoursEarned = Number(req.body?.hoursEarned) || 10;
+      const hoursEarned = z.coerce.number().finite().nonnegative().default(10).parse(req.body?.hoursEarned);
       const result = await this.validateDonationUseCase.execute(id, req.user.userId, {
         status: 'APPROVED' as any,
         hoursEarned,
@@ -92,7 +94,7 @@ export class DonationController {
       // EMPRESARIO: lista suas doações e tem visão corporativa
       // COPER: lista todas as doações do sistema
       const whereClause =
-        req.user.role === UserRole.COPER
+        req.user.role === UserRole.COPER && req.path !== '/my'
           ? {}
           : { userId: req.user.userId };
 
@@ -153,7 +155,7 @@ export class DonationController {
       if (!req.user) throw AppError.unauthorized();
       const studentId = req.params.studentId as string;
 
-      if (req.user.role === UserRole.ALUNO && req.user.userId !== studentId) {
+      if (req.user.role !== UserRole.COPER && req.user.userId !== studentId) {
         throw AppError.forbidden('Você só tem permissão para visualizar suas próprias doações.');
       }
 
@@ -219,6 +221,18 @@ export class DonationController {
     } catch (error) {
       next(error);
     }
+  };
+
+  downloadEvidence = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) throw AppError.unauthorized();
+      const id = z.string().uuid().parse(req.params.id);
+      const donation = await prisma.donation.findUniqueOrThrow({ where: { id }, select: { userId: true, evidenceUrl: true } });
+      if (req.user.role !== UserRole.COPER && req.user.userId !== donation.userId) throw AppError.forbidden();
+      const ext = z.enum(['jpg', 'png', 'webp']).parse(req.params.ext);
+      if (donation.evidenceUrl !== `/api/donations/${id}/evidence.${ext}`) throw AppError.notFound('Sem foto anexada.');
+      res.download(resolve('uploads', 'evidencias', `${id}.${ext}`), `evidencia.${ext}`, (err) => { if (err) next(err); });
+    } catch (err) { next(err); }
   };
 
   downloadPdf = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {

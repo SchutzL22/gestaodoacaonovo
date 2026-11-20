@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.errorHandler = errorHandler;
+const multer_1 = require("multer");
 const zod_1 = require("zod");
 const client_1 = require("@prisma/client");
 const AppError_js_1 = require("../../domain/errors/AppError.js");
@@ -25,6 +26,10 @@ function errorHandler(err, req, res, next) {
             message: 'Falha na validação dos dados de entrada.',
             details: formattedErrors,
         });
+        return;
+    }
+    if (err instanceof multer_1.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        res.status(413).json({ status: 'error', message: 'A foto deve ter até 10 MB.' });
         return;
     }
     if (err instanceof client_1.Prisma.PrismaClientKnownRequestError) {

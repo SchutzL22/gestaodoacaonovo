@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFloppyDisk, faPenToSquare, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import {
-  listarItensPrioritarios, criarItemPrioritario, atualizarItemPrioritario, deletarItemPrioritario
+  listarCampanhas, listarItensPrioritarios, criarItemPrioritario, atualizarItemPrioritario, deletarItemPrioritario
 } from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -12,19 +12,20 @@ const URGENCIA_BADGE = {
 };
 
 export default function ItensPrioritariosPage() {
+  const [campanhas, setCampanhas] = useState([]);
   const [itens, setItens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editando, setEditando] = useState(null); // null = modo criação
-  const [form, setForm] = useState({ nome: '', meta: '', urgencia: 'NORMAL' });
+  const [form, setForm] = useState({ campanhaId: '', nome: '', meta: '', urgencia: 'NORMAL' });
 
-  useEffect(() => { carregar(); }, []);
 
-  async function carregar() {
-    setLoading(true);
-    try { setItens(await listarItensPrioritarios()); }
-    catch (err) { toast.error('Erro ao carregar itens.'); }
-    finally { setLoading(false); }
-  }
+
+  useEffect(() => {
+    Promise.all([listarItensPrioritarios(), listarCampanhas()])
+      .then(([lista, opcoes]) => { setItens(lista); setCampanhas(opcoes); })
+      .catch(() => toast.error('Erro ao carregar itens.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -32,30 +33,30 @@ export default function ItensPrioritariosPage() {
     try {
       if (editando) {
         const updated = await atualizarItemPrioritario(editando.id, {
-          nome: form.nome, meta: form.meta || null, urgencia: form.urgencia
+          campanhaId: form.campanhaId, nome: form.nome, meta: form.meta || null, urgencia: form.urgencia
         });
         setItens(is => is.map(i => i.id === editando.id ? updated : i));
         toast.success('Item atualizado!');
       } else {
         const novo = await criarItemPrioritario({
-          nome: form.nome, meta: form.meta || null, urgencia: form.urgencia
+          campanhaId: form.campanhaId, nome: form.nome, meta: form.meta || null, urgencia: form.urgencia
         });
         setItens(is => [novo, ...is]);
         toast.success('Item criado!');
       }
       setEditando(null);
-      setForm({ nome: '', meta: '', urgencia: 'NORMAL' });
+      setForm({ campanhaId: '', nome: '', meta: '', urgencia: 'NORMAL' });
     } catch (err) { toast.error(err?.response?.data?.erro || 'Erro ao salvar item.'); }
   }
 
   function editarItem(item) {
     setEditando(item);
-    setForm({ nome: item.nome, meta: item.meta || '', urgencia: item.urgencia });
+    setForm({ campanhaId: item.campanhaId, nome: item.nome, meta: item.meta || '', urgencia: item.urgencia });
   }
 
   function cancelar() {
     setEditando(null);
-    setForm({ nome: '', meta: '', urgencia: 'NORMAL' });
+    setForm({ campanhaId: '', nome: '', meta: '', urgencia: 'NORMAL' });
   }
 
   async function handleDeletar(id) {
@@ -64,7 +65,7 @@ export default function ItensPrioritariosPage() {
       await deletarItemPrioritario(id);
       setItens(is => is.filter(i => i.id !== id));
       toast.success('Item removido!');
-    } catch (err) { toast.error('Erro ao remover item.'); }
+    } catch { toast.error('Erro ao remover item.'); }
   }
 
   return (
@@ -74,6 +75,14 @@ export default function ItensPrioritariosPage() {
         <h3>{editando ? 'Editar Item Prioritário' : 'Novo Item Prioritário'}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="item-campanha">Campanha *</label>
+              <select id="item-campanha" value={form.campanhaId} required
+                onChange={e => setForm(f => ({ ...f, campanhaId: e.target.value }))}>
+                <option value="">Selecione uma campanha</option>
+                {campanhas.map(c => <option key={c.id} value={c.id}>{c.titulo || c.title}</option>)}
+              </select>
+            </div>
             <div className="form-group">
               <label>Nome do Item *</label>
               <input type="text" placeholder="Ex: Agasalho adulto, Arroz 1kg"

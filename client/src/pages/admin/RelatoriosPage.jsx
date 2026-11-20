@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   FileText,
   FileSpreadsheet,
@@ -73,11 +73,11 @@ export default function RelatoriosPage() {
   const [page, setPage]             = useState(1);
 
   // Dados
-  const [loading, setLoading]         = useState(false);
+  const [loading, setLoading]         = useState(true);
   const [summary, setSummary]         = useState(null);
   const [donations, setDonations]     = useState([]);
   const [pagination, setPagination]   = useState(null);
-  const [filterError, setFilterError] = useState('');
+  const [consulta, setConsulta] = useState({ startDate, endDate, status, campaignId, page: 1 });
 
   // Exportação
   const [exporting, setExporting] = useState({ pdf: false, csv: false });
@@ -109,43 +109,42 @@ export default function RelatoriosPage() {
   const rangeExceeds1Year = rangeMs > 365 * 24 * 60 * 60 * 1000;
 
   // ── Buscar dados consolidados ─────────────────────────────────────────────
-  const fetchData = useCallback(async (pg = 1) => {
-    if (rangeExceeds1Year) {
-      setFilterError('⚠️ O intervalo máximo permitido para relatórios é de 1 ano (RN10).');
-      return;
-    }
-    setFilterError('');
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        startDate,
-        endDate,
-        status,
-        page: String(pg),
-        limit: '20',
-      });
-      if (campaignId) {
-        params.append('campaignId', campaignId);
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ ...consulta, page: String(consulta.page), limit: '20' });
+    if (!consulta.campaignId) params.delete('campaignId');
+    async function buscar() {
+      try {
+        const res = await fetch(`/api/reports/consolidated?${params}`, {
+          signal: controller.signal, headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Erro ao carregar relatório');
+        if (controller.signal.aborted) return;
+        setSummary(json.data.summary);
+        setDonations(json.data.donations || []);
+        setPagination(json.data.pagination || null);
+      } catch (err) {
+        if (!controller.signal.aborted) toast.error(err.message || 'Erro ao carregar relatório');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
-      const res = await fetch(`/api/reports/consolidated?${params}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || 'Erro ao carregar relatório');
-      setSummary(json.data.summary);
-      setDonations(json.data.donations || []);
-      setPagination(json.data.pagination || null);
-    } catch (err) {
-      toast.error(err.message || 'Erro ao carregar relatório');
-    } finally {
-      setLoading(false);
     }
-  }, [startDate, endDate, status, campaignId, rangeExceeds1Year]);
+    buscar();
+    return () => controller.abort();
+  }, [consulta]);
 
-  useEffect(() => { fetchData(1); }, [fetchData]);
-
-  const handleFilter = () => { setPage(1); fetchData(1); };
-  const handlePage = (pg) => { setPage(pg); fetchData(pg); };
+  function handleFilter() {
+    if (rangeExceeds1Year) return;
+    setLoading(true);
+    setPage(1);
+    setConsulta({ startDate, endDate, status, campaignId, page: 1 });
+  }
+  function handlePage(pg) {
+    setLoading(true);
+    setPage(pg);
+    setConsulta(prev => ({ ...prev, page: pg }));
+  }
 
   // ── Exportar arquivo (PDF ou CSV) ─────────────────────────────────────────
   async function exportFile(format) {
@@ -202,7 +201,7 @@ export default function RelatoriosPage() {
       if (!res.ok) throw new Error(json.message || 'Erro na limpeza');
       setRetentionResult(json.data);
       toast.success('Rotina LGPD executada com sucesso!');
-      fetchData(1);
+      handleFilter();
     } catch (err) {
       toast.error(err.message || 'Erro ao executar limpeza');
     } finally {
@@ -336,12 +335,6 @@ export default function RelatoriosPage() {
           <div className="mt-3 flex items-center gap-2 text-red-400 text-sm bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">
             <AlertTriangle size={15} />
             <span>⚠️ Regra de Negócio RN10: O intervalo máximo permitido para relatórios é de <strong>1 ano</strong>. Ajuste o período selecionado.</span>
-          </div>
-        )}
-        {filterError && !rangeExceeds1Year && (
-          <div className="mt-3 flex items-center gap-2 text-red-400 text-sm bg-red-900/20 border border-red-700/40 rounded-lg px-3 py-2">
-            <AlertTriangle size={15} />
-            <span>{filterError}</span>
           </div>
         )}
       </div>
