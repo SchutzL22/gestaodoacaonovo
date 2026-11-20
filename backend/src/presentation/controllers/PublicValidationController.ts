@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ValidateCertificateUseCase } from '../../application/use-cases/certificates/ValidateCertificateUseCase.js';
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { DonationStatus, CourseStatus } from '../../domain/enums/index.js';
-import { computeCampaignStatus } from '../routes/campaignRoutes.js';
+import { computeCampaignStatus } from '../../domain/campaignStatus.js';
 
 export class PublicValidationController {
   private validateUseCase = new ValidateCertificateUseCase();

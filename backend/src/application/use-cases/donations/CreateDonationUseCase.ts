@@ -1,3 +1,4 @@
+import { computeCampaignStatus } from '../../../domain/campaignStatus.js';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../../../infrastructure/database/prisma.js';
 import { CreateDonationInput } from '../../dtos/donation.dto.js';
@@ -14,16 +15,7 @@ export class CreateDonationUseCase {
         throw AppError.notFound('Campanha não encontrada.');
       }
 
-      const now = new Date();
-      const isFuture = campaign.startDate && now < campaign.startDate;
-      const isExpired = campaign.endDate && now > campaign.endDate;
-
-      if (
-        campaign.status === CampaignStatus.CLOSED ||
-        campaign.status === CampaignStatus.FUTURE ||
-        isFuture ||
-        isExpired
-      ) {
+      if (computeCampaignStatus(campaign.startDate, campaign.endDate, campaign.status) !== CampaignStatus.ACTIVE) {
         throw AppError.badRequest('Não é possível registrar doações para campanhas com status FUTURA ou ENCERRADA.');
       }
     }

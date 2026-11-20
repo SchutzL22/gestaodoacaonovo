@@ -7,7 +7,7 @@ const express_1 = require("express");
 const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const index_js_1 = require("../../domain/enums/index.js");
 const NotificationService_js_1 = require("../../application/services/NotificationService.js");
-const campaignRoutes_js_1 = require("./campaignRoutes.js");
+const campaignStatus_js_1 = require("../../domain/campaignStatus.js");
 const authMiddleware_js_1 = require("../middlewares/authMiddleware.js");
 const rbacMiddleware_js_1 = require("../middlewares/rbacMiddleware.js");
 const AppError_js_1 = require("../../domain/errors/AppError.js");
@@ -29,7 +29,7 @@ function ownerOrAdmin(param) {
     };
 }
 function mapCampaign(c) {
-    const statusEnum = (0, campaignRoutes_js_1.computeCampaignStatus)(c.startDate, c.endDate, c.status);
+    const statusEnum = (0, campaignStatus_js_1.computeCampaignStatus)(c.startDate, c.endDate, c.status);
     const status = statusEnum === index_js_1.CampaignStatus.CLOSED ? 'Encerrada'
         : statusEnum === index_js_1.CampaignStatus.FUTURE ? 'Futura' : c.isUrgent ? 'Urgente' : 'Ativa';
     return {
@@ -74,7 +74,7 @@ router.post('/campanhas', ...admin, async (req, res, next) => {
     }
     const parsedStartDate = new Date(finalStart);
     const parsedEndDate = finalEnd ? new Date(finalEnd) : null;
-    const autoStatus = (0, campaignRoutes_js_1.computeCampaignStatus)(parsedStartDate, parsedEndDate);
+    const autoStatus = (0, campaignStatus_js_1.computeCampaignStatus)(parsedStartDate, parsedEndDate);
     try {
         const created = await prisma_js_1.prisma.campaign.create({
             data: {
@@ -116,7 +116,9 @@ router.put('/campanhas/:id', ...admin, async (req, res, next) => {
         if (existing) {
             const newStart = finalStart ? new Date(finalStart) : existing.startDate;
             const newEnd = finalEnd !== undefined ? (finalEnd ? new Date(finalEnd) : null) : existing.endDate;
-            const autoStatus = status === 'Encerrada' ? index_js_1.CampaignStatus.CLOSED : (0, campaignRoutes_js_1.computeCampaignStatus)(newStart, newEnd, status);
+            if (newEnd && newEnd < newStart)
+                throw AppError_js_1.AppError.badRequest('Período da campanha inválido.');
+            const autoStatus = status === 'Encerrada' ? index_js_1.CampaignStatus.CLOSED : (0, campaignStatus_js_1.computeCampaignStatus)(newStart, newEnd, existing.status);
             const updated = await prisma_js_1.prisma.campaign.update({
                 where: { id: paramId },
                 data: {
@@ -215,29 +217,26 @@ router.get('/relatorios', ...admin, async (req, res, next) => {
     try {
         const twoYearsAgo = new Date();
         twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-        const baseWhere = { createdAt: { gte: twoYearsAgo } };
-        const [totalDoacoes, totalAprovadas, totalReprovadas, totalPendentes, horasAgg] = await Promise.all([
-            prisma_js_1.prisma.donation.count({ where: baseWhere }),
-            prisma_js_1.prisma.donation.count({ where: { ...baseWhere, status: 'APPROVED' } }),
-            prisma_js_1.prisma.donation.count({ where: { ...baseWhere, status: 'REJECTED' } }),
-            prisma_js_1.prisma.donation.count({ where: { ...baseWhere, status: 'PENDING' } }),
-            prisma_js_1.prisma.donation.aggregate({
-                where: { ...baseWhere, status: 'APPROVED' },
-                _sum: { hoursEarned: true },
-            }),
-        ]);
-        const totalHoras = horasAgg._sum?.hoursEarned || 0;
+        const porCampanha = await prisma_js_1.prisma.$queryRaw `
+      SELECT COALESCE(c.title, 'Sem campanha') AS campanha,
+             count(*)::int AS "totalDoacoes",
+             COALESCE(sum(d.hours_earned) FILTER (WHERE d.status = 'APPROVED'), 0)::float8 AS "horasConcedidas",
+             (count(*) FILTER (WHERE d.status = 'APPROVED'))::int AS aprovadas,
+             (count(*) FILTER (WHERE d.status = 'PENDING'))::int AS pendentes,
+             (count(*) FILTER (WHERE d.status = 'REJECTED'))::int AS reprovadas
+        FROM donations d LEFT JOIN campaigns c ON c.id = d.campaign_id
+       WHERE d.created_at >= ${twoYearsAgo}
+       GROUP BY c.id, c.title
+       ORDER BY "totalDoacoes" DESC, campanha, c.id`;
         res.json({
-            totalDoacoes,
-            totalAprovadas,
-            totalReprovadas,
-            totalPendentes,
-            totalHoras,
-            porCampanha: [
-                { campanha: 'Campanha de Alimentos', totalDoacoes: 2, horasConcedidas: 10 },
-                { campanha: 'Campanha do Agasalho', totalDoacoes: 1, horasConcedidas: 15 },
-                { campanha: 'Ação Social Corporativa', totalDoacoes: 1, horasConcedidas: 0 },
-            ],
+            totalDoacoes: porCampanha.reduce((sum, c) => sum + c.totalDoacoes, 0),
+            totalAprovadas: porCampanha.reduce((sum, c) => sum + c.aprovadas, 0),
+            totalReprovadas: porCampanha.reduce((sum, c) => sum + c.reprovadas, 0),
+            totalPendentes: porCampanha.reduce((sum, c) => sum + c.pendentes, 0),
+            totalHoras: porCampanha.reduce((sum, c) => sum + c.horasConcedidas, 0),
+            porCampanha: porCampanha.map(({ campanha, totalDoacoes, horasConcedidas }) => ({
+                campanha, totalDoacoes, horasConcedidas,
+            })),
         });
     }
     catch (err) {
@@ -342,14 +341,15 @@ router.post('/doacoes', authMiddleware_js_1.authMiddleware, upload.single('foto'
     try {
         const alunoId = req.body.alunoId ? String(req.body.alunoId) : undefined;
         const matricula = req.body.matricula ? String(req.body.matricula) : '';
-        const tipoItem = req.body.tipoItem ? String(req.body.tipoItem) : 'Doação Solidária';
+        const tipoItem = zod_1.z.string().trim().min(2).default('Doação Solidária').parse(req.body.tipoItem);
+        const categoria = zod_1.z.string().trim().min(2).default('OUTROS').parse(req.body.categoria);
         const quantidade = zod_1.z.coerce.number().finite().positive().parse(req.body.quantidade);
         const campanhaId = req.body.campanhaId || req.body.campaignId;
         if (campanhaId) {
             const campaign = await prisma_js_1.prisma.campaign.findUnique({ where: { id: String(campanhaId) } });
             if (!campaign)
                 throw AppError_js_1.AppError.notFound('Campanha não encontrada.');
-            if ((0, campaignRoutes_js_1.computeCampaignStatus)(campaign.startDate, campaign.endDate, campaign.status) !== index_js_1.CampaignStatus.ACTIVE) {
+            if ((0, campaignStatus_js_1.computeCampaignStatus)(campaign.startDate, campaign.endDate, campaign.status) !== index_js_1.CampaignStatus.ACTIVE) {
                 throw AppError_js_1.AppError.badRequest('Esta campanha está fora do período de arrecadação.');
             }
         }
@@ -396,8 +396,8 @@ router.post('/doacoes', authMiddleware_js_1.authMiddleware, upload.single('foto'
                 items: {
                     create: [
                         {
-                            description: tipoItem || 'Doação Solidária',
-                            category: 'ALIMENTOS',
+                            description: tipoItem,
+                            category: categoria,
                             quantity: quantidade,
                             unit: 'unidades',
                         },

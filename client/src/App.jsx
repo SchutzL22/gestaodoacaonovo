@@ -9,7 +9,6 @@ import RegistrarDoacaoPage from './pages/admin/RegistrarDoacaoPage';
 import ValidarDoacoesPage from './pages/admin/ValidarDoacoesPage';
 import CampanhasAdminPage from './pages/admin/CampanhasAdminPage';
 import ItensPrioritariosPage from './pages/admin/ItensPrioritariosPage';
-import RelatoriosPage from './pages/admin/RelatoriosPage';
 import DashboardAlunoPage from './pages/aluno/DashboardAlunoPage';
 import CampanhasAlunoPage from './pages/aluno/CampanhasAlunoPage';
 import HistoricoAlunoPage from './pages/aluno/HistoricoAlunoPage';
@@ -18,6 +17,7 @@ import ValidateCertificatePage from './pages/ValidateCertificatePage';
 import { paginaInicial, perfil } from './context/perfis';
 import CursosAlunoPage from './pages/aluno/CursosAlunoPage';
 
+const RelatoriosPage = lazy(() => import('./pages/admin/RelatoriosPage'));
 const DiarioClassePage = lazy(() => import('./pages/professor/DiarioClassePage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const SocialImpactDashboard = lazy(() => import('./pages/SocialImpactDashboard'));

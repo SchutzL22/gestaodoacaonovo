@@ -7,25 +7,18 @@ import { validate } from '../middlewares/validationMiddleware.js';
 import { Role, CampaignStatus } from '../../domain/enums/index.js';
 import { AppError } from '../../domain/errors/AppError.js';
 
+import { computeCampaignStatus } from '../../domain/campaignStatus.js';
+
 const router = Router();
 
-/** Calcula o status de uma campanha com base nas datas atuais. */
-function computeCampaignStatus(startDate?: Date | null, endDate?: Date | null, currentStatus?: CampaignStatus | string | null): CampaignStatus {
-  if (currentStatus === CampaignStatus.CLOSED || currentStatus === 'CLOSED' || currentStatus === 'Encerrada') {
-    return CampaignStatus.CLOSED;
-  }
-  const now = new Date();
-  if (startDate && now < startDate) return CampaignStatus.FUTURE;
-  if (endDate && now > endDate) return CampaignStatus.CLOSED;
-  return CampaignStatus.ACTIVE;
-}
+const campaignDate = z.union([z.string().date(), z.string().datetime({ offset: true })]);
 
 const createCampaignSchema = z
   .object({
     title: z.string().min(3, 'Título deve ter no mínimo 3 caracteres'),
     description: z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres'),
-    startDate: z.string().min(1, 'Data de início é obrigatória'),
-    endDate: z.string().optional().nullable(),
+    startDate: campaignDate,
+    endDate: campaignDate.nullable().optional(),
     hoursLimit: z.number().positive().optional().nullable(),
     conversionRules: z.string().optional().nullable(),
     isUrgent: z.boolean().default(false),
@@ -55,8 +48,8 @@ const updateCampaignSchema = z
   .object({
     title: z.string().min(3, 'Título deve ter no mínimo 3 caracteres').optional(),
     description: z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres').optional(),
-    startDate: z.string().optional().nullable(),
-    endDate: z.string().optional().nullable(),
+    startDate: campaignDate.optional(),
+    endDate: campaignDate.nullable().optional(),
     hoursLimit: z.number().positive().optional().nullable(),
     conversionRules: z.string().optional().nullable(),
     isUrgent: z.boolean().optional(),
@@ -125,7 +118,7 @@ router.get('/items/priority', async (req: Request, res: Response, next: NextFunc
     const items = await prisma.priorityItem.findMany({
       where: {
         campaign: {
-          status: CampaignStatus.ACTIVE,
+          status: { not: CampaignStatus.CLOSED },
         },
       },
       include: {
@@ -136,7 +129,11 @@ router.get('/items/priority', async (req: Request, res: Response, next: NextFunc
       orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
     });
 
-    res.json({ status: 'success', data: { items } });
+    const now = new Date();
+    const activeItems = items.filter(({ campaign }) =>
+      computeCampaignStatus(campaign.startDate, campaign.endDate, campaign.status, now) === CampaignStatus.ACTIVE
+    ).map(item => ({ ...item, campaign: { ...item.campaign, status: CampaignStatus.ACTIVE } }));
+    res.json({ status: 'success', data: { items: activeItems } });
   } catch (err) {
     next(err);
   }

@@ -107,7 +107,9 @@ export default function LoginPage() {
       setSucesso('Conta de estudante criada com sucesso! Você já pode fazer login.');
       toast.success('Cadastro realizado com sucesso!');
       setPainel(PAINEL.LOGIN);
-      setEmail(cEmail);
+      setPerfilSelecionado('ALUNO');
+      setEmail(cEmail.trim());
+      setCad({ nome: '', cpf: '', email: '', matricula: '', senha: '', confirmarSenha: '' });
       setSenha('');
     } catch (err) {
       setErro(err?.response?.data?.details?.[0]?.message || err?.response?.data?.message || 'Erro ao cadastrar.');
@@ -269,7 +271,7 @@ export default function LoginPage() {
                 { icon: faIdCard, key: 'cpf', placeholder: 'CPF (somente números)', type: 'text' },
                 { icon: faEnvelope, key: 'email', placeholder: 'E-mail institucional (@aluno.fmpsc.edu.br)', type: 'email' },
                 { icon: faGraduationCap, key: 'matricula', placeholder: 'Número de Matrícula FMP', type: 'text' },
-                { icon: faLock, key: 'senha', placeholder: 'Senha de acesso (mín. 6 dígitos)', type: 'password' },
+                { icon: faLock, key: 'senha', placeholder: 'Senha de acesso (mín. 6 caracteres)', type: 'password' },
                 { icon: faLock, key: 'confirmarSenha', placeholder: 'Confirme a senha', type: 'password' },
               ].map(f => (
                 <div className="input-group" key={f.key}>
@@ -277,6 +279,8 @@ export default function LoginPage() {
                   <input
                     type={f.type}
                     placeholder={f.placeholder}
+                      aria-label={f.placeholder}
+                      required
                     value={cad[f.key]}
                     onChange={e => setCad(v => ({ ...v, [f.key]: e.target.value }))}
                   />

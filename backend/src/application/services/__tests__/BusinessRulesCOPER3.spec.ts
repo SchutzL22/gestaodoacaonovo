@@ -9,6 +9,7 @@ import {
   createDonationSchema,
   reportFilterSchema,
 } from '../../dtos/donation.dto.js';
+import { computeCampaignStatus } from '../../../domain/campaignStatus.js';
 import { Role, DonationStatus } from '../../../domain/enums/index.js';
 
 describe('Sistema COPER 3.0 - Validação de Perfis e RBAC', () => {
@@ -19,12 +20,13 @@ describe('Sistema COPER 3.0 - Validação de Perfis e RBAC', () => {
       cpf: '123.456.789-00',
       password: 'password123',
       role: Role.ALUNO,
-      matricula: '20261010',
+      matricula: ' 20261010 ',
     };
 
     const parsed = registerSchema.safeParse(validAluno);
     expect(parsed.success).toBe(true);
     if (parsed.success) {
+      expect(parsed.data.matricula).toBe('20261010');
       expect(parsed.data.cpf).toBe('12345678900');
     }
   });
@@ -211,8 +213,21 @@ describe('Sistema COPER 3.0 - Módulo Acadêmico de Cursos e Avaliações', () =
   });
 
   describe('Validação de Campanhas e Período (data_inicio e data_limite)', () => {
-    it('deve calcular status FUTURA se a data de início for posterior ao momento atual', async () => {
-      const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+    it('aceita doações durante todo o último dia no horário de Palhoça', () => {
+      const dia = new Date('2026-11-20');
+      expect(computeCampaignStatus(dia, dia, 'FUTURE', new Date('2026-11-20T02:59:59Z'))).toBe('FUTURE');
+      expect(computeCampaignStatus(dia, dia, 'FUTURE', new Date('2026-11-20T03:00:00Z'))).toBe('ACTIVE');
+      expect(computeCampaignStatus(dia, dia, 'FUTURE', new Date('2026-11-21T02:59:59Z'))).toBe('ACTIVE');
+      expect(computeCampaignStatus(dia, dia, 'FUTURE', new Date('2026-11-21T03:00:00Z'))).toBe('CLOSED');
+    });
+
+    it('respeita prazos com horário explícito', () => {
+      const fim = new Date('2026-11-20T15:00:00Z');
+      expect(computeCampaignStatus(null, fim, 'ACTIVE', fim)).toBe('ACTIVE');
+      expect(computeCampaignStatus(null, fim, 'ACTIVE', new Date(fim.getTime() + 1))).toBe('CLOSED');
+    });
+
+    it('deve calcular status FUTURA se a data de início for posterior ao momento atual', () => {
       const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // +7 dias
       const futureEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 dias
 
@@ -220,8 +235,7 @@ describe('Sistema COPER 3.0 - Módulo Acadêmico de Cursos e Avaliações', () =
       expect(status).toBe('FUTURE');
     });
 
-    it('deve calcular status ATIVA se a data atual estiver dentro do intervalo', async () => {
-      const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+    it('deve calcular status ATIVA se a data atual estiver dentro do intervalo', () => {
       const pastStart = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000); // -5 dias
       const futureEnd = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // +15 dias
 
@@ -229,8 +243,7 @@ describe('Sistema COPER 3.0 - Módulo Acadêmico de Cursos e Avaliações', () =
       expect(status).toBe('ACTIVE');
     });
 
-    it('deve calcular status ENCERRADA (CLOSED) se a data limite for anterior à data atual', async () => {
-      const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+    it('deve calcular status ENCERRADA (CLOSED) se a data limite for anterior à data atual', () => {
       const pastStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const pastEnd = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
 
@@ -238,8 +251,7 @@ describe('Sistema COPER 3.0 - Módulo Acadêmico de Cursos e Avaliações', () =
       expect(status).toBe('CLOSED');
     });
 
-    it('deve manter status CLOSED se a campanha foi encerrada manualmente', async () => {
-      const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+    it('deve manter status CLOSED se a campanha foi encerrada manualmente', () => {
       const pastStart = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
       const futureEnd = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
 

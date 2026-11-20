@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const vitest_1 = require("vitest");
 const auth_dto_js_1 = require("../../dtos/auth.dto.js");
 const donation_dto_js_1 = require("../../dtos/donation.dto.js");
+const campaignStatus_js_1 = require("../../../domain/campaignStatus.js");
 const index_js_1 = require("../../../domain/enums/index.js");
 (0, vitest_1.describe)('Sistema COPER 3.0 - Validação de Perfis e RBAC', () => {
     (0, vitest_1.it)('deve aceitar cadastro de ALUNO com e-mail institucional e matrícula válida', () => {
@@ -12,11 +13,12 @@ const index_js_1 = require("../../../domain/enums/index.js");
             cpf: '123.456.789-00',
             password: 'password123',
             role: index_js_1.Role.ALUNO,
-            matricula: '20261010',
+            matricula: ' 20261010 ',
         };
         const parsed = auth_dto_js_1.registerSchema.safeParse(validAluno);
         (0, vitest_1.expect)(parsed.success).toBe(true);
         if (parsed.success) {
+            (0, vitest_1.expect)(parsed.data.matricula).toBe('20261010');
             (0, vitest_1.expect)(parsed.data.cpf).toBe('12345678900');
         }
     });
@@ -178,32 +180,40 @@ const index_js_1 = require("../../../domain/enums/index.js");
         (0, vitest_1.expect)(parsed.success).toBe(false);
     });
     (0, vitest_1.describe)('Validação de Campanhas e Período (data_inicio e data_limite)', () => {
-        (0, vitest_1.it)('deve calcular status FUTURA se a data de início for posterior ao momento atual', async () => {
-            const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+        (0, vitest_1.it)('aceita doações durante todo o último dia no horário de Palhoça', () => {
+            const dia = new Date('2026-11-20');
+            (0, vitest_1.expect)((0, campaignStatus_js_1.computeCampaignStatus)(dia, dia, 'FUTURE', new Date('2026-11-20T02:59:59Z'))).toBe('FUTURE');
+            (0, vitest_1.expect)((0, campaignStatus_js_1.computeCampaignStatus)(dia, dia, 'FUTURE', new Date('2026-11-20T03:00:00Z'))).toBe('ACTIVE');
+            (0, vitest_1.expect)((0, campaignStatus_js_1.computeCampaignStatus)(dia, dia, 'FUTURE', new Date('2026-11-21T02:59:59Z'))).toBe('ACTIVE');
+            (0, vitest_1.expect)((0, campaignStatus_js_1.computeCampaignStatus)(dia, dia, 'FUTURE', new Date('2026-11-21T03:00:00Z'))).toBe('CLOSED');
+        });
+        (0, vitest_1.it)('respeita prazos com horário explícito', () => {
+            const fim = new Date('2026-11-20T15:00:00Z');
+            (0, vitest_1.expect)((0, campaignStatus_js_1.computeCampaignStatus)(null, fim, 'ACTIVE', fim)).toBe('ACTIVE');
+            (0, vitest_1.expect)((0, campaignStatus_js_1.computeCampaignStatus)(null, fim, 'ACTIVE', new Date(fim.getTime() + 1))).toBe('CLOSED');
+        });
+        (0, vitest_1.it)('deve calcular status FUTURA se a data de início for posterior ao momento atual', () => {
             const futureStart = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
             const futureEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-            const status = computeCampaignStatus(futureStart, futureEnd);
+            const status = (0, campaignStatus_js_1.computeCampaignStatus)(futureStart, futureEnd);
             (0, vitest_1.expect)(status).toBe('FUTURE');
         });
-        (0, vitest_1.it)('deve calcular status ATIVA se a data atual estiver dentro do intervalo', async () => {
-            const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+        (0, vitest_1.it)('deve calcular status ATIVA se a data atual estiver dentro do intervalo', () => {
             const pastStart = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
             const futureEnd = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-            const status = computeCampaignStatus(pastStart, futureEnd);
+            const status = (0, campaignStatus_js_1.computeCampaignStatus)(pastStart, futureEnd);
             (0, vitest_1.expect)(status).toBe('ACTIVE');
         });
-        (0, vitest_1.it)('deve calcular status ENCERRADA (CLOSED) se a data limite for anterior à data atual', async () => {
-            const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+        (0, vitest_1.it)('deve calcular status ENCERRADA (CLOSED) se a data limite for anterior à data atual', () => {
             const pastStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
             const pastEnd = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-            const status = computeCampaignStatus(pastStart, pastEnd);
+            const status = (0, campaignStatus_js_1.computeCampaignStatus)(pastStart, pastEnd);
             (0, vitest_1.expect)(status).toBe('CLOSED');
         });
-        (0, vitest_1.it)('deve manter status CLOSED se a campanha foi encerrada manualmente', async () => {
-            const { computeCampaignStatus } = await import('../../../presentation/routes/campaignRoutes.js');
+        (0, vitest_1.it)('deve manter status CLOSED se a campanha foi encerrada manualmente', () => {
             const pastStart = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
             const futureEnd = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
-            const status = computeCampaignStatus(pastStart, futureEnd, 'CLOSED');
+            const status = (0, campaignStatus_js_1.computeCampaignStatus)(pastStart, futureEnd, 'CLOSED');
             (0, vitest_1.expect)(status).toBe('CLOSED');
         });
     });

@@ -272,11 +272,16 @@ Base URL: `http://localhost:3001/api`
 
 ## 🧪 Testes Automatizados
 
-O backend conta com suíte de testes unitários com **Vitest**:
+Na raiz do projeto, execute as regras de negócio e os testes de sessão e campanhas com:
 
 ```bash
-cd backend
-npm run test
+npm run test:unit --prefix backend
+```
+
+A suíte completa também faz requisições HTTP locais e grava dados. Para executá-la, configure `DATABASE_URL` para um PostgreSQL de testes com as migrações aplicadas e os dados de demonstração:
+
+```bash
+npm test --prefix backend
 ```
 
 **Cobertura de Testes:**

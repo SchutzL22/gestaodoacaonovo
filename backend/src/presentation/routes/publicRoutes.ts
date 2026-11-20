@@ -6,7 +6,7 @@ import { PublicValidationController } from '../controllers/PublicValidationContr
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { validate } from '../middlewares/validationMiddleware.js';
 import { DonationStatus, CampaignStatus } from '../../domain/enums/index.js';
-import { computeCampaignStatus } from './campaignRoutes.js';
+import { computeCampaignStatus } from '../../domain/campaignStatus.js';
 
 const router = Router();
 const publicController = new PublicValidationController();

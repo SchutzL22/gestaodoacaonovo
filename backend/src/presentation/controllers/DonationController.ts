@@ -86,9 +86,10 @@ export class DonationController {
     try {
       if (!req.user) throw AppError.unauthorized();
 
-      const page = Math.max(1, Number(req.query.page) || 1);
-      const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+      const page = Math.max(1, Math.trunc(Number(req.query.page)) || 1);
+      const limit = Math.min(100, Math.max(1, Math.trunc(Number(req.query.limit)) || 10));
       const skip = (page - 1) * limit;
+      if (!Number.isSafeInteger(skip) || skip > 2_147_483_647) throw AppError.badRequest('Página inválida.');
 
       // ALUNO: lista apenas suas próprias doações
       // EMPRESARIO: lista suas doações e tem visão corporativa
@@ -121,7 +122,7 @@ export class DonationController {
               select: { id: true, authHash: true, validationUrl: true, issuedAt: true },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         }),
         prisma.donation.count({ where: whereClause }),
         prisma.donation.aggregate({

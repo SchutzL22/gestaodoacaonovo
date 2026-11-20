@@ -4,3 +4,8 @@ backend/uploads/
 backend/certificados/
 *.class
 *.jar
+
+node_modules/
+.env
+.env.*
+!.env.example

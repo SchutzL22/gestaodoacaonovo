@@ -89,9 +89,11 @@ class DonationController {
         try {
             if (!req.user)
                 throw AppError_js_1.AppError.unauthorized();
-            const page = Math.max(1, Number(req.query.page) || 1);
-            const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+            const page = Math.max(1, Math.trunc(Number(req.query.page)) || 1);
+            const limit = Math.min(100, Math.max(1, Math.trunc(Number(req.query.limit)) || 10));
             const skip = (page - 1) * limit;
+            if (!Number.isSafeInteger(skip) || skip > 2_147_483_647)
+                throw AppError_js_1.AppError.badRequest('Página inválida.');
             const whereClause = req.user.role === index_js_1.UserRole.COPER && req.path !== '/my'
                 ? {}
                 : { userId: req.user.userId };
@@ -118,7 +120,7 @@ class DonationController {
                             select: { id: true, authHash: true, validationUrl: true, issuedAt: true },
                         },
                     },
-                    orderBy: { createdAt: 'desc' },
+                    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
                 }),
                 prisma_js_1.prisma.donation.count({ where: whereClause }),
                 prisma_js_1.prisma.donation.aggregate({

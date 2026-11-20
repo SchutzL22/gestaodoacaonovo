@@ -6,7 +6,7 @@ const alunoEmailPattern = /^[a-zA-Z0-9._%+-]+@aluno\.(fmpsc\.edu\.br|coper\.edu\
 const institucionalEmailPattern = /^[a-zA-Z0-9._%+-]+@(fmpsc\.edu\.br|coper\.edu\.br)$/;
 
 export const registerSchema = z.object({
-  name: z.string().min(3, 'O nome deve ter no mínimo 3 caracteres'),
+  name: z.string().trim().min(3, 'O nome deve ter no mínimo 3 caracteres'),
   email: z.string().trim().toLowerCase().email('E-mail inválido')
     .refine(email => !email.endsWith('@coper.invalid'), 'Domínio reservado.'),
   cpf: z
@@ -17,7 +17,7 @@ export const registerSchema = z.object({
     .pipe(z.string().regex(/^\d{11}$/, 'CPF deve conter 11 dígitos')),
   password: z.string().min(6, 'A senha deve conter no mínimo 6 caracteres'),
   role: z.nativeEnum(Role).default(Role.ALUNO),
-  matricula: z.string().optional(),
+  matricula: z.string().trim().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
 }).refine((data) => {

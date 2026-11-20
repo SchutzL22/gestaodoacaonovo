@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.computeCampaignStatus = computeCampaignStatus;
+exports.computeCampaignStatus = void 0;
 const express_1 = require("express");
 const zod_1 = require("zod");
 const prisma_js_1 = require("../../infrastructure/database/prisma.js");
@@ -9,24 +9,16 @@ const rbacMiddleware_js_1 = require("../middlewares/rbacMiddleware.js");
 const validationMiddleware_js_1 = require("../middlewares/validationMiddleware.js");
 const index_js_1 = require("../../domain/enums/index.js");
 const AppError_js_1 = require("../../domain/errors/AppError.js");
+const campaignStatus_js_1 = require("../../domain/campaignStatus.js");
+Object.defineProperty(exports, "computeCampaignStatus", { enumerable: true, get: function () { return campaignStatus_js_1.computeCampaignStatus; } });
 const router = (0, express_1.Router)();
-function computeCampaignStatus(startDate, endDate, currentStatus) {
-    if (currentStatus === index_js_1.CampaignStatus.CLOSED || currentStatus === 'CLOSED' || currentStatus === 'Encerrada') {
-        return index_js_1.CampaignStatus.CLOSED;
-    }
-    const now = new Date();
-    if (startDate && now < startDate)
-        return index_js_1.CampaignStatus.FUTURE;
-    if (endDate && now > endDate)
-        return index_js_1.CampaignStatus.CLOSED;
-    return index_js_1.CampaignStatus.ACTIVE;
-}
+const campaignDate = zod_1.z.union([zod_1.z.string().date(), zod_1.z.string().datetime({ offset: true })]);
 const createCampaignSchema = zod_1.z
     .object({
     title: zod_1.z.string().min(3, 'Título deve ter no mínimo 3 caracteres'),
     description: zod_1.z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres'),
-    startDate: zod_1.z.string().min(1, 'Data de início é obrigatória'),
-    endDate: zod_1.z.string().optional().nullable(),
+    startDate: campaignDate,
+    endDate: campaignDate.nullable().optional(),
     hoursLimit: zod_1.z.number().positive().optional().nullable(),
     conversionRules: zod_1.z.string().optional().nullable(),
     isUrgent: zod_1.z.boolean().default(false),
@@ -49,8 +41,8 @@ const updateCampaignSchema = zod_1.z
     .object({
     title: zod_1.z.string().min(3, 'Título deve ter no mínimo 3 caracteres').optional(),
     description: zod_1.z.string().min(5, 'Descrição deve ter no mínimo 5 caracteres').optional(),
-    startDate: zod_1.z.string().optional().nullable(),
-    endDate: zod_1.z.string().optional().nullable(),
+    startDate: campaignDate.optional(),
+    endDate: campaignDate.nullable().optional(),
     hoursLimit: zod_1.z.number().positive().optional().nullable(),
     conversionRules: zod_1.z.string().optional().nullable(),
     isUrgent: zod_1.z.boolean().optional(),
@@ -92,7 +84,7 @@ router.get('/', async (req, res, next) => {
         });
         const campaignsWithStatus = campaigns.map((c) => ({
             ...c,
-            status: computeCampaignStatus(c.startDate, c.endDate, c.status),
+            status: (0, campaignStatus_js_1.computeCampaignStatus)(c.startDate, c.endDate, c.status),
         }));
         res.json({ status: 'success', data: { campaigns: campaignsWithStatus } });
     }
@@ -105,7 +97,7 @@ router.get('/items/priority', async (req, res, next) => {
         const items = await prisma_js_1.prisma.priorityItem.findMany({
             where: {
                 campaign: {
-                    status: index_js_1.CampaignStatus.ACTIVE,
+                    status: { not: index_js_1.CampaignStatus.CLOSED },
                 },
             },
             include: {
@@ -115,7 +107,9 @@ router.get('/items/priority', async (req, res, next) => {
             },
             orderBy: [{ isUrgent: 'desc' }, { createdAt: 'desc' }],
         });
-        res.json({ status: 'success', data: { items } });
+        const now = new Date();
+        const activeItems = items.filter(({ campaign }) => (0, campaignStatus_js_1.computeCampaignStatus)(campaign.startDate, campaign.endDate, campaign.status, now) === index_js_1.CampaignStatus.ACTIVE).map(item => ({ ...item, campaign: { ...item.campaign, status: index_js_1.CampaignStatus.ACTIVE } }));
+        res.json({ status: 'success', data: { items: activeItems } });
     }
     catch (err) {
         next(err);
@@ -136,7 +130,7 @@ router.get('/:id', async (req, res, next) => {
         }
         const campaignWithStatus = {
             ...campaign,
-            status: computeCampaignStatus(campaign.startDate, campaign.endDate, campaign.status),
+            status: (0, campaignStatus_js_1.computeCampaignStatus)(campaign.startDate, campaign.endDate, campaign.status),
         };
         res.json({ status: 'success', data: { campaign: campaignWithStatus } });
     }
@@ -149,7 +143,7 @@ router.post('/', authMiddleware_js_1.authMiddleware, (0, rbacMiddleware_js_1.req
         const { priorityItems, startDate, endDate, ...campaignData } = req.body;
         const parsedStartDate = new Date(startDate);
         const parsedEndDate = endDate ? new Date(endDate) : null;
-        const autoStatus = computeCampaignStatus(parsedStartDate, parsedEndDate);
+        const autoStatus = (0, campaignStatus_js_1.computeCampaignStatus)(parsedStartDate, parsedEndDate);
         const campaign = await prisma_js_1.prisma.campaign.create({
             data: {
                 ...campaignData,
@@ -193,7 +187,7 @@ router.put('/:id', authMiddleware_js_1.authMiddleware, (0, rbacMiddleware_js_1.r
         const newEnd = endDate === undefined ? existing.endDate : updatePayload.endDate;
         if (!newStart || (newEnd && newEnd < newStart))
             throw AppError_js_1.AppError.badRequest('Período da campanha inválido.');
-        updatePayload.status = computeCampaignStatus(newStart, newEnd, existing.status);
+        updatePayload.status = (0, campaignStatus_js_1.computeCampaignStatus)(newStart, newEnd, existing.status);
         if (priorityItems !== undefined) {
             updatePayload.priorityItems = { deleteMany: {}, create: priorityItems };
         }

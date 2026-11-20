@@ -158,39 +158,40 @@ export const deletarCampanha = (id) =>
   api.delete(`/campaigns/${id}`).then((r) => r.data);
 
 // ─── DOAÇÕES ─────────────────────────────────────────────────────────────────
-export const listarDoacoes = (page = 1, limit = 50) =>
-  api.get(`/donations?page=${page}&limit=${limit}`)
-    .then((r) => {
-      const respData = r.data?.data || r.data;
-      const rawList = Array.isArray(respData) ? respData : (respData?.donations || []);
-      return rawList.map((d) => ({
-        ...d,
-        id: d.id,
-        data: d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : '',
-        aluno: d.donorName || d.user?.name || d.aluno || 'Estudante FMP',
-        matricula: d.user?.matricula || d.matricula || '',
-        item: d.items?.[0]?.description || d.item || 'Doação Solidária',
-        quantidade: d.items?.[0]?.quantity || d.quantidade || 1,
-        horas: d.hoursEarned ?? d.horas ?? 0,
-        status: d.status === 'APPROVED' ? 'Aprovada' : d.status === 'REJECTED' ? 'Reprovada' : 'Pendente',
-        statusRaw: d.status,
-      }));
-    })
-    .catch(() =>
-      api.get('/doacoes').then((r) => {
-        const list = Array.isArray(r.data) ? r.data : [];
-        return list.map((d) => ({
-          ...d,
-          data: d.data || (d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : ''),
-          aluno: d.aluno || d.user?.name || 'Estudante FMP',
-          matricula: d.matricula || d.user?.matricula || '',
-          item: d.item || d.items?.[0]?.description || 'Doação Solidária',
-          quantidade: d.quantidade || d.items?.[0]?.quantity || 1,
-          horas: d.horas ?? d.hoursEarned ?? 0,
-          status: d.status === 'APPROVED' ? 'Aprovada' : d.status === 'REJECTED' ? 'Reprovada' : (d.status || 'Pendente'),
-        }));
-      })
-    );
+function formatarDoacao(d) {
+  const status = { APPROVED: 'Aprovada', REJECTED: 'Reprovada', PENDING: 'Pendente' };
+  return {
+    ...d,
+    data: d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : d.data,
+    aluno: d.donorName || d.user?.name || d.aluno || 'Doador',
+    matricula: d.user?.matricula || d.matricula || '',
+    item: d.items?.[0]?.description || d.item || 'Doação Solidária',
+    quantidade: d.items?.[0]?.quantity ?? d.quantidade ?? 1,
+    horas: d.hoursEarned ?? d.horas ?? 0,
+    status: status[d.status] || d.status,
+    statusRaw: d.status,
+  };
+}
+
+export async function listarPaginaDoacoes(page = 1, limit = 50, signal) {
+  let dados;
+  try {
+    const { data } = await api.get('/donations', { params: { page, limit }, signal });
+    dados = data.data ?? data;
+  } catch (err) {
+    if (err.response?.status !== 404) throw err;
+    const { data } = await api.get('/doacoes', { signal });
+    dados = data;
+  }
+  if (Array.isArray(dados)) {
+    const inicio = (page - 1) * limit;
+    return { doacoes: dados.slice(inicio, inicio + limit).map(formatarDoacao), totalPages: Math.ceil(dados.length / limit) };
+  }
+  return { doacoes: dados.donations.map(formatarDoacao), totalPages: dados.pagination.totalPages };
+}
+
+export const listarDoacoes = (page, limit) =>
+  listarPaginaDoacoes(page, limit).then(resultado => resultado.doacoes);
 
 export const listarDoacoesPorAluno = (alunoId) =>
   api.get(`/donations/student/${alunoId}`)
@@ -244,8 +245,8 @@ export const deletarItemPrioritario = (id) =>
   api.delete(`/itens-prioritarios/${id}`).then((r) => r.data);
 
 // ─── RELATÓRIOS & NOTIFICAÇÕES ───────────────────────────────────────────────
-export const buscarRelatorio = () =>
-  api.get('/relatorios').then((r) => r.data);
+export const buscarRelatorio = (signal) =>
+  api.get('/relatorios', { signal }).then((r) => r.data);
 
 export const listarNotificacoes = (alunoId) =>
   api.get(`/notificacoes/aluno/${alunoId}`).then((r) => r.data);

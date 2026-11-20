@@ -29,59 +29,61 @@ class RegisterUseCase {
             }
         }
         const passwordHash = await PasswordHasher_js_1.PasswordHasher.hash(data.password);
-        const user = await prisma_js_1.prisma.user.create({
-            data: {
-                name: data.name,
-                email: data.email,
-                cpf: data.cpf,
-                passwordHash,
-                role: data.role,
-                matricula: data.matricula || null,
-                address: data.address || null,
-                phone: data.phone || null,
-                isActive: true,
-                semesterHoursLimit: data.role === index_js_1.UserRole.ALUNO ? 40 : null,
-                totalHoursEarned: 0,
-            },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                cpf: true,
-                role: true,
-                matricula: true,
-                address: true,
-                phone: true,
-                isActive: true,
-                semesterHoursLimit: true,
-                totalHoursEarned: true,
-                createdAt: true,
-            },
-        });
-        const accessToken = TokenService_js_1.TokenService.generateAccessToken({
-            userId: user.id,
-            email: user.email,
-            role: user.role,
-        });
-        const refreshTokenString = TokenService_js_1.TokenService.generateRefreshToken({
-            userId: user.id,
-            email: user.email,
-            role: user.role,
-        });
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7);
-        await prisma_js_1.prisma.refreshToken.create({
-            data: {
-                token: refreshTokenString,
+        return prisma_js_1.prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: {
+                    name: data.name,
+                    email: data.email,
+                    cpf: data.cpf,
+                    passwordHash,
+                    role: data.role,
+                    matricula: data.matricula || null,
+                    address: data.address || null,
+                    phone: data.phone || null,
+                    isActive: true,
+                    semesterHoursLimit: data.role === index_js_1.UserRole.ALUNO ? 40 : null,
+                    totalHoursEarned: 0,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    cpf: true,
+                    role: true,
+                    matricula: true,
+                    address: true,
+                    phone: true,
+                    isActive: true,
+                    semesterHoursLimit: true,
+                    totalHoursEarned: true,
+                    createdAt: true,
+                },
+            });
+            const accessToken = TokenService_js_1.TokenService.generateAccessToken({
                 userId: user.id,
-                expiresAt,
-            },
+                email: user.email,
+                role: user.role,
+            });
+            const refreshTokenString = TokenService_js_1.TokenService.generateRefreshToken({
+                userId: user.id,
+                email: user.email,
+                role: user.role,
+            });
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 7);
+            await tx.refreshToken.create({
+                data: {
+                    token: refreshTokenString,
+                    userId: user.id,
+                    expiresAt,
+                },
+            });
+            return {
+                user,
+                accessToken,
+                refreshToken: refreshTokenString,
+            };
         });
-        return {
-            user,
-            accessToken,
-            refreshToken: refreshTokenString,
-        };
     }
 }
 exports.RegisterUseCase = RegisterUseCase;

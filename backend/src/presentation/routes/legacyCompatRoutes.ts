@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../../infrastructure/database/prisma.js';
 import { DonationStatus, UserRole, CampaignStatus } from '../../domain/enums/index.js';
 import { NotificationService } from '../../application/services/NotificationService.js';
-import { computeCampaignStatus } from './campaignRoutes.js';
+import { computeCampaignStatus } from '../../domain/campaignStatus.js';
 import { authMiddleware, AuthenticatedRequest } from '../middlewares/authMiddleware.js';
 import { requireRoles } from '../middlewares/rbacMiddleware.js';
 import { AppError } from '../../domain/errors/AppError.js';
@@ -117,7 +117,8 @@ router.put('/campanhas/:id', ...admin, async (req: Request, res: Response, next)
     if (existing) {
       const newStart = finalStart ? new Date(finalStart) : existing.startDate;
       const newEnd = finalEnd !== undefined ? (finalEnd ? new Date(finalEnd) : null) : existing.endDate;
-      const autoStatus = status === 'Encerrada' ? CampaignStatus.CLOSED : computeCampaignStatus(newStart, newEnd, status);
+      if (newEnd && newEnd < newStart) throw AppError.badRequest('Período da campanha inválido.');
+      const autoStatus = status === 'Encerrada' ? CampaignStatus.CLOSED : computeCampaignStatus(newStart, newEnd, existing.status);
 
       const updated = await prisma.campaign.update({
         where: { id: paramId },
@@ -206,32 +207,29 @@ router.get('/relatorios', ...admin, async (req: Request, res: Response, next) =>
   try {
     const twoYearsAgo = new Date();
     twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-    const baseWhere = { createdAt: { gte: twoYearsAgo } };
-
-    const [totalDoacoes, totalAprovadas, totalReprovadas, totalPendentes, horasAgg] = await Promise.all([
-      prisma.donation.count({ where: baseWhere }),
-      prisma.donation.count({ where: { ...baseWhere, status: 'APPROVED' } }),
-      prisma.donation.count({ where: { ...baseWhere, status: 'REJECTED' } }),
-      prisma.donation.count({ where: { ...baseWhere, status: 'PENDING' } }),
-      prisma.donation.aggregate({
-        where: { ...baseWhere, status: 'APPROVED' },
-        _sum: { hoursEarned: true },
-      }),
-    ]);
-
-    const totalHoras = horasAgg._sum?.hoursEarned || 0;
-
+    const porCampanha = await prisma.$queryRaw<{
+      campanha: string; totalDoacoes: number; horasConcedidas: number;
+      aprovadas: number; pendentes: number; reprovadas: number;
+    }[]>`
+      SELECT COALESCE(c.title, 'Sem campanha') AS campanha,
+             count(*)::int AS "totalDoacoes",
+             COALESCE(sum(d.hours_earned) FILTER (WHERE d.status = 'APPROVED'), 0)::float8 AS "horasConcedidas",
+             (count(*) FILTER (WHERE d.status = 'APPROVED'))::int AS aprovadas,
+             (count(*) FILTER (WHERE d.status = 'PENDING'))::int AS pendentes,
+             (count(*) FILTER (WHERE d.status = 'REJECTED'))::int AS reprovadas
+        FROM donations d LEFT JOIN campaigns c ON c.id = d.campaign_id
+       WHERE d.created_at >= ${twoYearsAgo}
+       GROUP BY c.id, c.title
+       ORDER BY "totalDoacoes" DESC, campanha, c.id`;
     res.json({
-      totalDoacoes,
-      totalAprovadas,
-      totalReprovadas,
-      totalPendentes,
-      totalHoras,
-      porCampanha: [
-        { campanha: 'Campanha de Alimentos', totalDoacoes: 2, horasConcedidas: 10 },
-        { campanha: 'Campanha do Agasalho', totalDoacoes: 1, horasConcedidas: 15 },
-        { campanha: 'Ação Social Corporativa', totalDoacoes: 1, horasConcedidas: 0 },
-      ],
+      totalDoacoes: porCampanha.reduce((sum, c) => sum + c.totalDoacoes, 0),
+      totalAprovadas: porCampanha.reduce((sum, c) => sum + c.aprovadas, 0),
+      totalReprovadas: porCampanha.reduce((sum, c) => sum + c.reprovadas, 0),
+      totalPendentes: porCampanha.reduce((sum, c) => sum + c.pendentes, 0),
+      totalHoras: porCampanha.reduce((sum, c) => sum + c.horasConcedidas, 0),
+      porCampanha: porCampanha.map(({ campanha, totalDoacoes, horasConcedidas }) => ({
+        campanha, totalDoacoes, horasConcedidas,
+      })),
     });
   } catch (err) {
     next(err);
@@ -343,7 +341,8 @@ router.post('/doacoes', authMiddleware, upload.single('foto'), async (req: Reque
   try {
     const alunoId = req.body.alunoId ? String(req.body.alunoId) : undefined;
     const matricula = req.body.matricula ? String(req.body.matricula) : '';
-    const tipoItem = req.body.tipoItem ? String(req.body.tipoItem) : 'Doação Solidária';
+    const tipoItem = z.string().trim().min(2).default('Doação Solidária').parse(req.body.tipoItem);
+    const categoria = z.string().trim().min(2).default('OUTROS').parse(req.body.categoria);
     const quantidade = z.coerce.number().finite().positive().parse(req.body.quantidade);
     const campanhaId = req.body.campanhaId || req.body.campaignId;
     if (campanhaId) {
@@ -397,8 +396,8 @@ router.post('/doacoes', authMiddleware, upload.single('foto'), async (req: Reque
         items: {
           create: [
             {
-              description: tipoItem || 'Doação Solidária',
-              category: 'ALIMENTOS',
+              description: tipoItem,
+              category: categoria,
               quantity: quantidade,
               unit: 'unidades',
             },

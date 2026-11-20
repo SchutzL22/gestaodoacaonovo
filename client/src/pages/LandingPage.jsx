@@ -1,3 +1,4 @@
+import CategoriasDoacao from '../components/CategoriasDoacao';
 import { paginaInicial } from '../context/perfis';
 import React, { useState, useEffect } from 'react';
 import fmpLogo from '../assets/fmplogo.png';
@@ -1011,12 +1012,7 @@ export default function LandingPage() {
                         onChange={(e) => setDonateForm({ ...donateForm, itemCategory: e.target.value })}
                         className="modal-select"
                       >
-                        <option value="ALIMENTOS">Alimentos</option>
-                        <option value="VESTUARIO">Vestuário / Agasalhos</option>
-                        <option value="HIGIENE">Higiene & Limpeza</option>
-                        <option value="EDUCACIONAL">Material Escolar / Livros</option>
-                        <option value="BRINQUEDOS">Brinquedos</option>
-                        <option value="OUTROS">Outros</option>
+                        <CategoriasDoacao />
                       </select>
                     </div>
 

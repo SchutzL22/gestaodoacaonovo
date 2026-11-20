@@ -4,7 +4,7 @@ exports.PublicValidationController = void 0;
 const ValidateCertificateUseCase_js_1 = require("../../application/use-cases/certificates/ValidateCertificateUseCase.js");
 const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const index_js_1 = require("../../domain/enums/index.js");
-const campaignRoutes_js_1 = require("../routes/campaignRoutes.js");
+const campaignStatus_js_1 = require("../../domain/campaignStatus.js");
 class PublicValidationController {
     validateUseCase = new ValidateCertificateUseCase_js_1.ValidateCertificateUseCase();
     validateDocument = async (req, res, next) => {
@@ -92,7 +92,7 @@ class PublicValidationController {
                         itens: row.itens, horas: row.horas,
                     })),
                     campaigns: campaignsList.map(c => ({
-                        ...c, status: (0, campaignRoutes_js_1.computeCampaignStatus)(c.startDate, c.endDate, c.status),
+                        ...c, status: (0, campaignStatus_js_1.computeCampaignStatus)(c.startDate, c.endDate, c.status),
                         currentItems: quantities.get(c.id) ?? 0,
                         targetItems: c.priorityItems.reduce((sum, item) => sum + (item.goal ?? 0), 0),
                     })),

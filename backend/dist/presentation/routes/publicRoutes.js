@@ -11,7 +11,7 @@ const PublicValidationController_js_1 = require("../controllers/PublicValidation
 const prisma_js_1 = require("../../infrastructure/database/prisma.js");
 const validationMiddleware_js_1 = require("../middlewares/validationMiddleware.js");
 const index_js_1 = require("../../domain/enums/index.js");
-const campaignRoutes_js_1 = require("./campaignRoutes.js");
+const campaignStatus_js_1 = require("../../domain/campaignStatus.js");
 const router = (0, express_1.Router)();
 const publicController = new PublicValidationController_js_1.PublicValidationController();
 const publicValidationLimiter = (0, express_rate_limit_1.default)({
@@ -57,7 +57,7 @@ router.post('/doacoes/anonima', (0, validationMiddleware_js_1.validate)({ body: 
             const camp = await prisma_js_1.prisma.campaign.findUnique({ where: { id: campaignId } });
             if (!camp)
                 return res.status(404).json({ status: 'error', message: 'Campanha não encontrada.' });
-            const campStatus = (0, campaignRoutes_js_1.computeCampaignStatus)(camp.startDate, camp.endDate, camp.status);
+            const campStatus = (0, campaignStatus_js_1.computeCampaignStatus)(camp.startDate, camp.endDate, camp.status);
             if (campStatus !== index_js_1.CampaignStatus.ACTIVE) {
                 return res.status(400).json({ status: 'error', message: 'Esta campanha não está ativa para receber doações.' });
             }

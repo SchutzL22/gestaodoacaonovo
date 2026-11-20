@@ -12,6 +12,7 @@
     "prisma:studio": "prisma studio",
     "seed": "tsx src/infrastructure/database/seed.ts",
     "test": "vitest run",
+    "test:unit": "vitest run src/application/services/__tests__ .unit.test.ts",
     "seed:demo": "tsx src/infrastructure/database/seed.ts",
     "db:reset-demo": "prisma migrate reset --force && tsx src/infrastructure/database/seed.ts"
   },

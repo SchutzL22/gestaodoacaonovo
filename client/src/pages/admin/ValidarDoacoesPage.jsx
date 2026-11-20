@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCircleCheck, faCircleXmark, faPenToSquare, faTrash, faXmark, faFloppyDisk
 } from '@fortawesome/free-solid-svg-icons';
-import api, { listarDoacoes, validarDoacao, editarDoacao, deletarDoacao } from '../../services/api';
+import api, { listarPaginaDoacoes, validarDoacao, editarDoacao, deletarDoacao } from '../../services/api';
 import toast from 'react-hot-toast';
 
 function StatusBadge({ status }) {
@@ -23,14 +23,38 @@ export default function ValidarDoacoesPage() {
   const [editando, setEditando] = useState(null);
   const [editForm, setEditForm] = useState({ matricula: '', tipoItem: '', quantidade: '' });
 
-  useEffect(() => { carregar(); }, []);
+  const [pagina, setPagina] = useState(1);
+  const [paginas, setPaginas] = useState(0);
+  const [revisao, setRevisao] = useState(0);
+  const [erro, setErro] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
-  async function carregar() {
+  useEffect(() => {
+    const controller = new AbortController();
+    listarPaginaDoacoes(pagina, 25, controller.signal)
+      .then(({ doacoes, totalPages }) => {
+        if (controller.signal.aborted) return;
+        if (pagina > Math.max(1, totalPages)) {
+          setPagina(Math.max(1, totalPages));
+          return;
+        }
+        setLoading(false);
+        setPaginas(totalPages);
+        setDoacoes(doacoes);
+      })
+      .catch(() => { if (!controller.signal.aborted) setErro(true); });
+    return () => controller.abort();
+  }, [pagina, revisao]);
+
+  function mudarPagina(proxima) {
     setLoading(true);
-    try {
-      setDoacoes(await listarDoacoes());
-    } catch { toast.error('Erro ao carregar doações.'); }
-    finally { setLoading(false); }
+    setPagina(proxima);
+  }
+
+  function recarregar() {
+    setErro(false);
+    setLoading(true);
+    setRevisao(valor => valor + 1);
   }
 
   async function handleValidar(id, status) {
@@ -41,11 +65,12 @@ export default function ValidarDoacoesPage() {
       motivoReprovacao = motivo.trim();
       if (!motivoReprovacao) { toast.error('Informe o motivo da reprovação.'); return; }
     }
+    setSalvando(true);
     try {
       await validarDoacao(id, status, motivoReprovacao);
-      await carregar();
+      recarregar();
       toast.success(`Doação ${status === 'APROVADA' ? 'aprovada' : 'reprovada'}!`);
-    } catch (err) { toast.error(err?.response?.data?.message || 'Erro ao validar.'); }
+    } catch (err) { toast.error(err?.response?.data?.message || 'Erro ao validar.'); } finally { setSalvando(false); }
   }
 
   async function baixarFoto(doacao) {
@@ -62,49 +87,53 @@ export default function ValidarDoacoesPage() {
 
   async function handleEditar(e) {
     e.preventDefault();
+    setSalvando(true);
     try {
       await editarDoacao(editando.id, {
         quantidade: Number(editForm.quantidade),
         tipoItem: editForm.tipoItem,
-        itemId: editando.items?.[0]?.id,
+        itemId: editForm.itemId,
         matricula: editForm.matricula
       });
-      await carregar();
+      recarregar();
       setEditando(null);
       toast.success('Doação atualizada!');
-    } catch (err) { toast.error(err?.response?.data?.erro || 'Erro ao editar.'); }
+    } catch (err) { toast.error(err?.response?.data?.details?.[0]?.message || err?.response?.data?.message || err?.response?.data?.erro || 'Erro ao editar.'); } finally { setSalvando(false); }
   }
 
   async function handleDeletar(id) {
     if (!window.confirm('Remover esta doação?')) return;
+    setSalvando(true);
     try {
       await deletarDoacao(id);
-      setDoacoes(ds => ds.filter(d => d.id !== id));
+      recarregar();
       toast.success('Doação removida!');
-    } catch { toast.error('Erro ao remover.'); }
+    } catch { toast.error('Erro ao remover.'); } finally { setSalvando(false); }
   }
 
   function abrirEditar(doacao) {
     setEditando(doacao);
-    setEditForm({ matricula: doacao.matricula || '', tipoItem: doacao.item, quantidade: doacao.quantidade });
+    setEditForm({ itemId: doacao.items?.[0]?.id, matricula: doacao.matricula || '', tipoItem: doacao.item, quantidade: doacao.quantidade });
   }
 
   return (
     <div className="page-section">
-      {loading ? (
+      {erro ? (
+        <div role="alert">Não foi possível carregar as doações. <button onClick={recarregar}>Tentar novamente</button></div>
+      ) : loading ? (
         <div className="loading-container"><div className="spinner" /><span>Carregando...</span></div>
       ) : (
         <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Data</th><th>Aluno</th><th>Item</th>
-                <th>Qtd</th><th>Status</th><th>Ações</th>
+                <th>Data</th><th>Doador</th><th>Itens e quantidades</th>
+                <th>Status</th><th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {doacoes.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                   Nenhuma doação registrada.
                 </td></tr>
               ) : doacoes.map(d => (
@@ -114,26 +143,28 @@ export default function ValidarDoacoesPage() {
                     <div style={{ fontWeight: 600 }}>{d.aluno || '—'}</div>
                     {d.matricula && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>#{d.matricula}</div>}
                   </td>
-                  <td>{d.item}
+                  <td>
+                    {d.items?.length ? d.items.map(item => (
+                      <div key={item.id}>{item.quantity} {item.unit} · {item.description}</div>
+                    )) : <div>{d.quantidade} × {d.item}</div>}
                     {d.evidenceUrl?.startsWith(`/api/donations/${d.id}/evidence.`) &&
                       <button type="button" onClick={() => baixarFoto(d)}>Baixar foto</button>}
                   </td>
-                  <td>{d.quantidade}</td>
                   <td><StatusBadge status={d.status} /></td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                       {d.status === 'Pendente' && <>
-                        <button className="btn-success" aria-label="Aprovar doação" onClick={() => handleValidar(d.id, 'APROVADA')}>
+                        <button disabled={salvando} className="btn-success" aria-label="Aprovar doação" onClick={() => handleValidar(d.id, 'APROVADA')}>
                           <FontAwesomeIcon icon={faCircleCheck} />
                         </button>
-                        <button className="btn-danger" aria-label="Reprovar doação" onClick={() => handleValidar(d.id, 'REPROVADA')}>
+                        <button disabled={salvando} className="btn-danger" aria-label="Reprovar doação" onClick={() => handleValidar(d.id, 'REPROVADA')}>
                           <FontAwesomeIcon icon={faCircleXmark} />
                         </button>
-                      <button className="btn-icon" title="Editar" onClick={() => abrirEditar(d)}
+                      <button disabled={salvando} className="btn-icon" title="Editar" onClick={() => abrirEditar(d)}
                         style={{ color: 'var(--primary)' }}>
                         <FontAwesomeIcon icon={faPenToSquare} />
                       </button>
-                      <button className="btn-icon" title="Remover" onClick={() => handleDeletar(d.id)}
+                      <button disabled={salvando} className="btn-icon" title="Remover" onClick={() => handleDeletar(d.id)}
                         style={{ color: 'var(--danger)' }}>
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
@@ -144,6 +175,11 @@ export default function ValidarDoacoesPage() {
               ))}
             </tbody>
           </table>
+          {paginas > 1 && <nav aria-label="Páginas de doações" className="flex items-center justify-center gap-4 p-4">
+            <button disabled={salvando || pagina === 1} onClick={() => mudarPagina(pagina - 1)}>Anterior</button>
+            <span>Página {pagina} de {paginas}</span>
+            <button disabled={salvando || pagina >= paginas} onClick={() => mudarPagina(pagina + 1)}>Próxima</button>
+          </nav>}
         </div>
       )}
 
@@ -158,6 +194,15 @@ export default function ValidarDoacoesPage() {
               </button>
             </div>
             <form onSubmit={handleEditar}>
+              {editando.items?.length > 1 && <div className="form-group">
+                <label htmlFor="item-edicao">Item a editar</label>
+                <select id="item-edicao" value={editForm.itemId} onChange={e => {
+                  const item = editando.items.find(i => i.id === e.target.value);
+                  setEditForm(f => ({ ...f, itemId: item.id, tipoItem: item.description, quantidade: item.quantity }));
+                }}>
+                  {editando.items.map(i => <option key={i.id} value={i.id}>{i.description}</option>)}
+                </select>
+              </div>}
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label>Matrícula do Aluno</label>
                 <input type="text" value={editForm.matricula}
@@ -170,10 +215,10 @@ export default function ValidarDoacoesPage() {
               </div>
               <div className="form-group" style={{ marginBottom: '1.2rem' }}>
                 <label>Quantidade *</label>
-                <input type="number" min="1" value={editForm.quantidade} required
+                <input type="number" min="0" step="any" value={editForm.quantidade} required
                   onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))} />
               </div>
-              <button className="btn-primary" type="submit">
+              <button disabled={salvando} className="btn-primary" type="submit">
                 <FontAwesomeIcon icon={faFloppyDisk} /> Salvar Alterações
               </button>
             </form>

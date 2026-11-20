@@ -6,7 +6,7 @@ const index_js_1 = require("../../domain/enums/index.js");
 const alunoEmailPattern = /^[a-zA-Z0-9._%+-]+@aluno\.(fmpsc\.edu\.br|coper\.edu\.br)$/;
 const institucionalEmailPattern = /^[a-zA-Z0-9._%+-]+@(fmpsc\.edu\.br|coper\.edu\.br)$/;
 exports.registerSchema = zod_1.z.object({
-    name: zod_1.z.string().min(3, 'O nome deve ter no mínimo 3 caracteres'),
+    name: zod_1.z.string().trim().min(3, 'O nome deve ter no mínimo 3 caracteres'),
     email: zod_1.z.string().trim().toLowerCase().email('E-mail inválido')
         .refine(email => !email.endsWith('@coper.invalid'), 'Domínio reservado.'),
     cpf: zod_1.z
@@ -17,7 +17,7 @@ exports.registerSchema = zod_1.z.object({
         .pipe(zod_1.z.string().regex(/^\d{11}$/, 'CPF deve conter 11 dígitos')),
     password: zod_1.z.string().min(6, 'A senha deve conter no mínimo 6 caracteres'),
     role: zod_1.z.nativeEnum(index_js_1.Role).default(index_js_1.Role.ALUNO),
-    matricula: zod_1.z.string().optional(),
+    matricula: zod_1.z.string().trim().optional(),
     address: zod_1.z.string().optional(),
     phone: zod_1.z.string().optional(),
 }).refine((data) => {

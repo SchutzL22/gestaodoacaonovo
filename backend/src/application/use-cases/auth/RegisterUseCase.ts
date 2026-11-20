@@ -34,63 +34,65 @@ export class RegisterUseCase {
 
     const passwordHash = await PasswordHasher.hash(data.password);
 
-    const user = await prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        cpf: data.cpf,
-        passwordHash,
-        role: data.role as UserRole,
-        matricula: data.matricula || null,
-        address: data.address || null,
-        phone: data.phone || null,
-        isActive: true,
-        semesterHoursLimit: data.role === UserRole.ALUNO ? 40 : null,
-        totalHoursEarned: 0,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        cpf: true,
-        role: true,
-        matricula: true,
-        address: true,
-        phone: true,
-        isActive: true,
-        semesterHoursLimit: true,
-        totalHoursEarned: true,
-        createdAt: true,
-      },
-    });
+    return prisma.$transaction(async tx => {
+      const user = await tx.user.create({
+        data: {
+          name: data.name,
+          email: data.email,
+          cpf: data.cpf,
+          passwordHash,
+          role: data.role as UserRole,
+          matricula: data.matricula || null,
+          address: data.address || null,
+          phone: data.phone || null,
+          isActive: true,
+          semesterHoursLimit: data.role === UserRole.ALUNO ? 40 : null,
+          totalHoursEarned: 0,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          cpf: true,
+          role: true,
+          matricula: true,
+          address: true,
+          phone: true,
+          isActive: true,
+          semesterHoursLimit: true,
+          totalHoursEarned: true,
+          createdAt: true,
+        },
+      });
 
-    const accessToken = TokenService.generateAccessToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role as UserRole,
-    });
-
-    const refreshTokenString = TokenService.generateRefreshToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role as UserRole,
-    });
-
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshTokenString,
+      const accessToken = TokenService.generateAccessToken({
         userId: user.id,
-        expiresAt,
-      },
-    });
+        email: user.email,
+        role: user.role as UserRole,
+      });
 
-    return {
-      user,
-      accessToken,
-      refreshToken: refreshTokenString,
-    };
+      const refreshTokenString = TokenService.generateRefreshToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role as UserRole,
+      });
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      await tx.refreshToken.create({
+        data: {
+          token: refreshTokenString,
+          userId: user.id,
+          expiresAt,
+        },
+      });
+
+      return {
+        user,
+        accessToken,
+        refreshToken: refreshTokenString,
+      };
+    });
   }
 }
