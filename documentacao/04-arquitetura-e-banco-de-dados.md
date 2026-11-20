@@ -400,3 +400,97 @@ Todas as rotas são expostas a partir do prefixo `/api` (ou `/api/v1`):
 | `GET` | `/api/reports/consolidated` | `COPER`, `EMPRESARIO` | Relatórios consolidados por campanha/data (trava de até 1 ano e retenção de 2 anos). |
 | `GET` | `/api/reports/export` | `COPER`, `EMPRESARIO` | Exportação de dados estruturados para prestação de contas sociais e balanço ESG. |
 | `GET` | `/api/search` | `COPER` | Pesquisa global instantânea por aluno, matrícula, campanha ou hash de doação. |
+
+
+---
+
+## 7. Módulo de Exportação de Relatórios e Retenção LGPD (v3.0.6)
+
+### Novos Endpoints de Relatório
+
+| Método | Rota | Perfil | Descrição |
+|--------|------|--------|-----------|
+| `GET` | `/api/reports/consolidated` | COPER, EMPRESARIO | JSON com KPIs, sumário, distribuição por categorias e lista paginada de doações (suporta `campaignId`, `startDate`, `endDate`, `status`) |
+| `GET` | `/api/reports/export/pdf` | COPER, EMPRESARIO | PDF institucional FMP com cabeçalho oficial, logo, metadados (campanha, período, emissor), KPIs e tabela (completa para COPER; agregada para EMPRESARIO) |
+| `GET` | `/api/reports/export/csv` | **COPER** (exclusivo) | Planilha CSV separada por `;` com BOM UTF-8 (`\uFEFF`), metadados e lista estruturada de doações compatível com Excel |
+| `GET` | `/api/reports/social-impact` | COPER, EMPRESARIO | Dashboard analítico ESG (últimos 12 meses, campanhas ativas e beneficiários) |
+| `POST` | `/api/reports/retention/cleanup` | **COPER** (exclusivo) | Execução manual da limpeza LGPD (2 anos) com registro em log de auditoria persistente |
+
+### Regras de Negócio Aplicadas nos Endpoints de Exportação
+
+| Regra | Implementação |
+|-------|--------------|
+| **RN10 — Amplitude Máxima de 1 ano** | Validação do intervalo `endDate - startDate ≤ 365 dias`; retorna HTTP 400 com mensagem clara se exceder |
+| **RN10 — Bloqueio de Registros Antigos** | Bloqueia emissão de relatórios operacionais referentes a doações registradas há mais de 1 ano (`startDate < hoje - 1 ano`); retorna HTTP 400 |
+| **RN14 / RNF06 — Retenção Operacional de 2 anos** | Validação de `startDate ≥ hoje - 2 anos`; retorna HTTP 400 se exceder |
+| **RBAC — CSV restrito** | `requireRoles(Role.COPER)` no endpoint `/export/csv` — perfil EMPRESARIO recebe HTTP 403 (preservação de dados sensíveis de terceiros) |
+| **Anonimização LGPD** | Registros com certificado vinculado ou doadores externos → anonimização (`donorName/donorCpf` substituídos); doações sem certificado → deleção definitiva |
+| **Auditoria Permanente** | Registro de cada execução do job (automático via cron ou manual via API) no console e no arquivo permanente `logs/audit-retention.log` |
+
+### Arquitetura da Rotina de Retenção
+
+```mermaid
+flowchart TD
+    A["server.ts — app.listen()"] --> B["scheduleRetentionJob()"]
+    B --> C["node-cron: '0 2 * * *'\nTodo dia às 02:00"]
+    C --> D["cleanupExpiredDonations()"]
+    D --> E{"donation.createdAt\n< hoje - 2 anos?"}
+    E -- Sim --> F{"Tem certificate\nou donorName?"}
+    F -- Sim --> G["UPDATE: donorName='DADOS REMOVIDOS'\ndonorCpf='00000000000'\nobservation='[anonimizado LGPD]'"]
+    F -- Não --> H["DELETE definitivo\n(sem dados pessoais vinculados)"]
+    E -- Não --> I["Registro mantido"]
+    G --> J["Log: anonymizedCount++"]
+    H --> K["Log: deletedCount++"]
+    J & K --> L["Console: [RetentionJob] ✅ Concluída"]
+
+    style G fill:#1a3a1a,stroke:#27AE60
+    style H fill:#3a1a1a,stroke:#E74C3C
+    style L fill:#1a2a3a,stroke:#2196F3
+```
+
+### Estrutura do PDF Gerado
+
+```
+┌─────────────────────────────────────────────────────┐
+│   FACULDADE MUNICIPAL DE PALHOÇA — FMP              │
+│   Coordenação de Extensão e Responsabilidade — COPER│
+│   Sistema COPER 3.0 — Relatório Consolidado         │
+├─────────────────────────────────────────────────────┤
+│ Período: XX/XX/XXXX a XX/XX/XXXX                   │
+│ Emitido em: XX/XX/XXXX XX:XX  Responsável: email   │
+├─────────────────────────────────────────────────────┤
+│  RESUMO DE INDICADORES (KPIs)                       │
+│  Total de Doações no Período .............. N       │
+│  • Aprovadas ........................... N          │
+│  • Pendentes ........................... N          │
+│  Total de Horas Complementares ......... Xh         │
+│  Total de Itens Arrecadados ............ N          │
+│  Alunos Participantes .................. N          │
+│  Impacto Estimado ..................... ~N pessoas  │
+├─────────────────────────────────────────────────────┤
+│  ITENS POR CATEGORIA                                │
+│  ALIMENTOS .............................. N unidades│
+│  ROUPAS ................................ N unidades  │
+├─────────────────────────────────────────────────────┤
+│  [2ª página — apenas COPER]                        │
+│  DETALHAMENTO DAS DOAÇÕES                          │
+│  Doador | Campanha | Itens | Status | Horas | Data │
+│  ...    | ...      | ...   | ...    | ...   | ...  │
+├─────────────────────────────────────────────────────┤
+│  Documento gerado automaticamente — COPER 3.0 FMP  │
+│  Dados sujeitos à política de retenção 2 anos LGPD │
+└─────────────────────────────────────────────────────┘
+```
+
+### Formato do CSV Exportado
+
+```csv
+[BOM UTF-8]
+# Relatório COPER 3.0 — FMP
+# Período: XX/XX/XXXX a XX/XX/XXXX
+# Emitido em: XX/XX/XXXX por email@fmpsc.edu.br
+# Total de registros: N | Aprovadas: N | Horas: Xh
+#
+ID;Doador;Email;Matricula;Tipo Doador;CPF;Campanha;Itens (descricao);Quantidade Total;Status;Horas Concedidas;Data Registro;Validado Por;Observacao
+abc12345;Lucas Schutz;lucas@aluno.fmpsc.edu.br;20241001;ALUNO;222.333.444-55;Agasalho FMP;4x Cobertores;4;Aprovada;10;20/11/2026;coper@fmpsc.edu.br;Itens em ótimo estado
+```

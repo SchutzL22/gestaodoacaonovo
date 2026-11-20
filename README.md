@@ -214,8 +214,9 @@ Cole qualquer hash abaixo em `http://localhost:5173/validar?code=<hash>`:
 | `tok-lucas-libras` | Certificado de Curso | Lucas Schutz — Libras | **40h** |
 | `tok-civil-001` | Comprovante de Doação | Maria de Lourdes | 0h |
 
-> 📋 **Documentação completa de cenários de teste e roteiro de banca:**  
-> [`documentacao/08-credenciais-e-dados-demo.md`](documentacao/08-credenciais-e-dados-demo.md)
+> 📋 **Documentação operacional, cenários de teste e roteiro de banca:**  
+> - [`documentacao/08-manual-usuario-e-apresentacao.md`](documentacao/08-manual-usuario-e-apresentacao.md) (Manual COPER + Roteiro Cronometrado de Banca)  
+> - [`documentacao/09-credenciais-e-dados-demo.md`](documentacao/09-credenciais-e-dados-demo.md) (Credenciais, Dados Demo e Hashes de Autenticidade)
 
 ---
 

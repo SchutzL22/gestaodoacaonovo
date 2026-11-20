@@ -48,8 +48,9 @@ export const validateDonationSchema = z
 
 export type ValidateDonationInput = z.infer<typeof validateDonationSchema>;
 
-// Filtro de relatório consolidado (com trava de até 1 ano)
+// Filtro de relatório consolidado (com trava de até 1 ano e filtro por campanha)
 export const reportFilterSchema = z.object({
+  campaignId: z.string().optional(),
   startDate: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
   endDate: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
   status: z.enum(['ALL', DonationStatus.PENDING, DonationStatus.APPROVED, DonationStatus.REJECTED]).default('ALL'),

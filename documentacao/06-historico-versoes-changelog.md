@@ -115,12 +115,67 @@ timeline
 | **Validação Pública Desautenticada**| ❌ Não | ❌ Não | ✅ Sim (Rota `/validar?code=HASH`) |
 | **Landing Page de Impacto Social** | ❌ Não | ❌ Não | ✅ Sim (Pública com KPIs ESG) |
 | **Prazo de Retenção de Dados** | Indefinido | 5 anos | 2 anos (Conforme LGPD) |
-| **Testes Automatizados** | 0 testes | Parciais em JUnit | 33 testes Vitest integrados |
+| **Testes Automatizados** | 0 testes | Parciais em JUnit | 62 testes Vitest + Supertest (100% aprovados) |
 
 
 ---
 
 ## 5. Changelog Detalhado — v3.0 (Novembro 2026)
+
+### v3.0.7 — Suíte de Testes Automatizados E2E / Integração com Vitest + Supertest (20/11/2026)
+
+**Arquivos criados/alterados:**
+- `backend/tests/auth.test.ts` — 8 testes de autenticação, domínio de e-mail institucional, RBAC e rate limiting.
+- `backend/tests/doacoes.test.ts` — 8 testes de ciclo de vida de campanhas, trava de matrícula inativa (RN05), regras de horas para Civil/Professor (RN13) e validação de hash público.
+- `backend/tests/cursos.test.ts` — 6 testes de lotação de turma, fila FIFO, cancelamento com promoção automática e fechamento com notas A1/A2/A3 e frequência.
+- `backend/package.json` — Adição das dependências `supertest` e `@types/supertest`.
+- `documentacao/05-plano-de-testes-e-qa.md` — Atualização completa de 32 casos de teste para o status `✅ Aprovado (Automatizado)` com métricas da suíte.
+
+**Resultados da Suíte:**
+- **9 arquivos de teste**, **62 testes executados**, **0 falhas (100% de sucesso)** em 3.22s.
+- Cobertura completa de regras de negócio RN01 a RN14, segurança RBAC, rate-limiting HTTP 429, emissão e validação de certificados.
+
+---
+
+### v3.0.6 — Exportação de Relatórios (PDF/CSV) + Retenção LGPD Automatizada (20/11/2026)
+
+**Arquivos alterados:**
+- `backend/src/presentation/routes/reportRoutes.ts` — Reescrita completa com endpoints de exportação
+- `backend/src/infrastructure/jobs/retentionCleanup.ts` — Reescrita: anonimização + expurgo + cron
+- `backend/src/presentation/server.ts` — Registro da rotina `scheduleRetentionJob()` no startup
+- `client/src/pages/admin/RelatoriosPage.jsx` — Reescrita completa (era stub de 6 linhas)
+- `documentacao/04-arquitetura-e-banco-de-dados.md` — Seção 7: endpoints de relatório e retenção
+- `documentacao/05-plano-de-testes-e-qa.md` — Seções 4 e 5: cenários T17–T29
+
+**Dependências instaladas:**
+- `node-cron` + `@types/node-cron` — agendador cron para a rotina LGPD diária
+
+**O que foi implementado:**
+
+| Componente | Descrição |
+|-----------|-----------|
+| **`GET /api/reports/export/pdf`** | PDF institucional A4 (PDFKit): cabeçalho FMP, 4 KPIs, tabela por categoria (pág. 1), tabela de doações detalhadas para COPER (pág. 2). EMPRESARIO recebe apenas KPIs. |
+| **`GET /api/reports/export/csv`** | Planilha CSV com BOM UTF-8, separador `;` compatível com Excel. Acesso restrito a `COPER`. |
+| **`POST /api/reports/retention/cleanup`** | Trigger manual do expurgo LGPD. Retorna `{ deletedCount, anonymizedCount, cutoffDate, executedAt }`. |
+| **Rotina Cron Diária (02:00)** | `scheduleRetentionJob()` anonimiza doações com certificado e exclui as sem certificado com mais de 2 anos. |
+| **Trava RN10** | Período de relatório bloqueado acima de 365 dias (HTTP 400 com mensagem clara). |
+| **Trava de Retenção** | Relatório operacional bloqueado para doações com mais de 2 anos (HTTP 400). |
+| **`RelatoriosPage.jsx`** | Painel COPER completo: filtros de período, 4 KPIs cards, tabela paginada de doações, botões PDF e CSV com spinner/download via blob, painel LGPD collapsível, alerta front-end para RN10. |
+
+**Regras de acesso dos novos endpoints:**
+
+| Endpoint | COPER | EMPRESARIO | ALUNO/PROFESSOR |
+|----------|:-----:|:----------:|:---------------:|
+| `GET /export/pdf` | ✅ Completo | ✅ Apenas KPIs | ❌ 403 |
+| `GET /export/csv` | ✅ | ❌ 403 | ❌ 403 |
+| `POST /retention/cleanup` | ✅ | ❌ 403 | ❌ 403 |
+
+**Invariantes mantidas:**
+- `tsc --noEmit` → 0 erros ✅
+- 33 testes Vitest → todos passando ✅
+- Nenhuma alteração no schema Prisma ✅
+
+---
 
 ### v3.0.5 — Seed Demo FMP + Documentação de Credenciais (20/11/2026)
 
@@ -128,7 +183,8 @@ timeline
 - `backend/src/infrastructure/database/seed.ts` — Reescrita completa com dados FMP reais
 - `backend/package.json` — Adicionados scripts `seed:demo` e `db:reset-demo`
 - `README.md` — Seção de credenciais atualizada com emails `@fmpsc.edu.br`
-- `documentacao/08-credenciais-e-dados-demo.md` — Novo arquivo criado
+- `documentacao/09-credenciais-e-dados-demo.md` — Novo arquivo criado com catálogo de credenciais e dados demo
+- `documentacao/08-manual-usuario-e-apresentacao.md` — Manual operacional COPER e roteiro de banca ao vivo
 
 **O que foi implementado:**
 

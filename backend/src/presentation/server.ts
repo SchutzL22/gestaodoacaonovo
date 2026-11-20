@@ -1,5 +1,6 @@
 import app from './app.js';
 import dotenv from 'dotenv';
+import { scheduleRetentionJob } from '../infrastructure/jobs/retentionCleanup.js';
 
 dotenv.config();
 
@@ -15,6 +16,9 @@ const server = app.listen(PORT, () => {
    🛡️  Arquitetura: Clean Architecture & DDD + Prisma ORM
   =======================================================
   `);
+
+  // Iniciar rotina de retenção LGPD (diária às 02:00)
+  scheduleRetentionJob();
 });
 
 process.on('SIGTERM', () => {

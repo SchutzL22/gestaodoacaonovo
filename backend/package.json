@@ -18,6 +18,7 @@
   "dependencies": {
     "@prisma/client": "^6.4.1",
     "@types/multer": "^2.3.0",
+    "@types/node-cron": "^3.0.11",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -27,6 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^2.5.0",
+    "node-cron": "^4.6.0",
     "nodemailer": "^6.10.0",
     "pdfkit": "^0.16.0",
     "qrcode": "^1.5.4",
@@ -43,8 +45,10 @@
     "@types/nodemailer": "^6.4.17",
     "@types/pdfkit": "^0.13.9",
     "@types/qrcode": "^1.5.5",
+    "@types/supertest": "^7.2.1",
     "@types/uuid": "^10.0.0",
     "prisma": "^6.4.1",
+    "supertest": "^7.3.2",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vitest": "^5.0.5"

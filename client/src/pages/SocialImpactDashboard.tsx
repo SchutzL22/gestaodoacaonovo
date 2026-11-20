@@ -15,6 +15,8 @@ import {
   ArrowLeft,
   LogIn,
   BarChart3,
+  RefreshCw,
+  Filter,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -28,14 +30,24 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
+import toast from 'react-hot-toast';
+import { getSessao } from '../services/api';
 import fmpLogo from '../assets/fmplogo.png';
 import './SocialImpactDashboard.css';
 
 // Paleta de visualização de dados — tons de azul FMP e complementares
 const CATEGORY_COLORS = ['#0A3A60', '#1A5282', '#2196F3', '#27AE60', '#F2994A'];
 
+interface CampaignItem {
+  id: string;
+  title: string;
+}
+
 export default function SocialImpactDashboard({ embedded = false }: { embedded?: boolean }) {
   const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [campaignsList, setCampaignsList] = useState<CampaignItem[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [kpis, setKpis] = useState({
     totalItens: 14850,
@@ -123,10 +135,80 @@ export default function SocialImpactDashboard({ embedded = false }: { embedded?:
         // Dados institucionais de demonstração mantidos
       }
     }
+
+    async function loadCampaigns() {
+      try {
+        const sessao = getSessao();
+        const headers: Record<string, string> = {};
+        if (sessao?.accessToken) {
+          headers['Authorization'] = `Bearer ${sessao.accessToken}`;
+        }
+        const res = await axios.get('/api/campaigns', { headers });
+        const list = res.data?.data?.campaigns || res.data?.data || [];
+        setCampaignsList(list);
+      } catch {
+        setCampaignsList([]);
+      }
+    }
+
     loadStats();
+    loadCampaigns();
   }, []);
 
-  const handleExportPDF = () => window.print();
+  // ── Exportação Real de Arquivo PDF Institucional ──
+  const handleExportPDF = async () => {
+    const sessao = getSessao();
+    const token = sessao?.accessToken;
+
+    if (!token) {
+      toast.error('Autenticação necessária: Faça login como Empresário ou COPER para emitir o relatório institucional.');
+      window.print();
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const startDate = `${selectedYear}-01-01`;
+      const isCurrentYear = String(new Date().getFullYear()) === selectedYear;
+      const endDate = isCurrentYear
+        ? new Date().toISOString().slice(0, 10)
+        : `${selectedYear}-12-31`;
+
+      const params = new URLSearchParams({
+        startDate,
+        endDate,
+      });
+      if (selectedCampaignId) {
+        params.append('campaignId', selectedCampaignId);
+      }
+
+      const res = await fetch(`/api/reports/export/pdf?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.message || 'Falha ao emitir relatório PDF institucional');
+      }
+
+      const blob = await res.blob();
+      const filename = `relatorio-impacto-social-fmp-${selectedYear}.pdf`;
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
+
+      toast.success('Relatório PDF institucional emitido com sucesso!');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao exportar PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const tooltipStyle = {
     backgroundColor: '#ffffff',
@@ -144,9 +226,13 @@ export default function SocialImpactDashboard({ embedded = false }: { embedded?:
         categoryData={categoryData}
         monthlyData={monthlyData}
         campaigns={campaigns}
+        campaignsList={campaignsList}
         selectedYear={selectedYear}
         setSelectedYear={setSelectedYear}
+        selectedCampaignId={selectedCampaignId}
+        setSelectedCampaignId={setSelectedCampaignId}
         handleExportPDF={handleExportPDF}
+        isExporting={isExporting}
         tooltipStyle={tooltipStyle}
       />
     );
@@ -184,9 +270,13 @@ export default function SocialImpactDashboard({ embedded = false }: { embedded?:
           categoryData={categoryData}
           monthlyData={monthlyData}
           campaigns={campaigns}
+          campaignsList={campaignsList}
           selectedYear={selectedYear}
           setSelectedYear={setSelectedYear}
+          selectedCampaignId={selectedCampaignId}
+          setSelectedCampaignId={setSelectedCampaignId}
           handleExportPDF={handleExportPDF}
+          isExporting={isExporting}
           tooltipStyle={tooltipStyle}
         />
       </div>
@@ -203,18 +293,26 @@ function SocialImpactContent({
   categoryData,
   monthlyData,
   campaigns,
+  campaignsList,
   selectedYear,
   setSelectedYear,
+  selectedCampaignId,
+  setSelectedCampaignId,
   handleExportPDF,
+  isExporting,
   tooltipStyle,
 }: {
   kpis: KPIs;
   categoryData: { name: string; value: number; pct: string }[];
   monthlyData: { mes: string; itens: number; horas: number }[];
   campaigns: Campaign[];
+  campaignsList: CampaignItem[];
   selectedYear: string;
   setSelectedYear: (y: string) => void;
+  selectedCampaignId: string;
+  setSelectedCampaignId: (id: string) => void;
   handleExportPDF: () => void;
+  isExporting: boolean;
   tooltipStyle: object;
 }) {
   return (
@@ -233,19 +331,48 @@ function SocialImpactContent({
         </div>
 
         <div className="sid-top-actions">
+          {/* Filtro por Campanha */}
+          {campaignsList.length > 0 && (
+            <div className="sid-year-select">
+              <Package size={15} />
+              <select
+                value={selectedCampaignId}
+                onChange={(e) => setSelectedCampaignId(e.target.value)}
+                title="Filtrar por Campanha"
+              >
+                <option value="">Todas as Campanhas</option>
+                {campaignsList.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Filtro por Ano */}
           <div className="sid-year-select">
             <Calendar size={15} />
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
+              title="Filtrar por Exercício"
             >
               <option value="2026">Exercício 2026</option>
               <option value="2025">Exercício 2025</option>
             </select>
           </div>
-          <button type="button" onClick={handleExportPDF} className="btn-export">
-            <Download size={14} />
-            Exportar Relatório
+
+          {/* Botão de Exportação PDF */}
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            className="btn-export"
+            title="Exportar Relatório PDF Oficial FMP"
+          >
+            {isExporting ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+            <span>{isExporting ? 'Emitindo PDF...' : 'Exportar Relatório PDF'}</span>
           </button>
         </div>
       </div>
@@ -348,34 +475,32 @@ function SocialImpactContent({
 
         {/* Gráfico 2: Área mensal */}
         <div className="sid-chart-card">
-          <h3 className="sid-chart-title">Evolução Mensal de Arrecadações & Horas</h3>
-          <p className="sid-chart-sub">
-            Crescimento contínuo de itens doados e horas complementares atribuídas em {selectedYear}.
-          </p>
+          <h3 className="sid-chart-title">Evolução Mensal de Arrecadação & Horas</h3>
+          <p className="sid-chart-sub">Curva comparativa de itens recebidos e horas homologadas ao longo dos meses.</p>
 
-          <div className="sid-chart-area" style={{ height: 280 }}>
+          <div className="sid-chart-area">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="itensGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#0A3A60" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#0A3A60" stopOpacity={0} />
+                    <stop offset="95%" stopColor="#0A3A60" stopOpacity={0.0} />
                   </linearGradient>
                   <linearGradient id="horasGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2196F3" stopOpacity={0.20} />
-                    <stop offset="95%" stopColor="#2196F3" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#2196F3" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#2196F3" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="mes" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Area
                   type="monotone"
                   dataKey="itens"
                   name="Itens Arrecadados"
                   stroke="#0A3A60"
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#itensGrad)"
                 />
@@ -415,9 +540,14 @@ function SocialImpactContent({
             <h3 className="sid-table-title">Relatório de Transparência das Campanhas</h3>
             <p className="sid-table-sub">Registro auditável dos projetos comunitários e destinação dos suprimentos.</p>
           </div>
-          <button type="button" onClick={handleExportPDF} className="btn-sheet">
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            className="btn-sheet"
+          >
             <FileSpreadsheet size={14} />
-            Baixar Planilha de Prestação de Contas
+            <span>{isExporting ? 'Emitindo...' : 'Baixar Relatório de Prestação de Contas'}</span>
           </button>
         </div>
 

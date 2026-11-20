@@ -166,4 +166,6 @@ A documentação técnica oficial do Sistema COPER 3.0 está organizada na pasta
 5. [**05. Plano de Testes e Garantia de Qualidade (QA)**](file:///c:/Users/lucas/Downloads/gestaodoacaonovo/documentacao/05-plano-de-testes-e-qa.md): Matriz de testes (`T01` a `T16`) e relatório de execução dos 33 testes automatizados via Vitest.
 6. [**06. Histórico de Versões e Changelog**](file:///c:/Users/lucas/Downloads/gestaodoacaonovo/documentacao/06-historico-versoes-changelog.md): Linha do tempo evolutiva (v1.0, v2.0 Java legado e v3.0 Node/React atual) e matriz comparativa.
 7. [**07. Diagramas UML do Sistema**](file:///c:/Users/lucas/Downloads/gestaodoacaonovo/documentacao/07-diagramas-uml.md): Diagrama estrutural de classes completo e diagramas de sequência dos fluxos de doação e acadêmico/FIFO.
+8. [**08. Manual do Usuário e Roteiro de Apresentação**](file:///c:/Users/lucas/Downloads/gestaodoacaonovo/documentacao/08-manual-usuario-e-apresentacao.md): Manual operacional rápido para a equipe COPER e roteiro cronometrado de demonstração para a banca de PI III.
+9. [**09. Credenciais, Dados Demo e Hashes de Autenticidade**](file:///c:/Users/lucas/Downloads/gestaodoacaonovo/documentacao/09-credenciais-e-dados-demo.md): Guia de execução do seed idempotente, usuários da FMP e chaves para validação pública.
 
