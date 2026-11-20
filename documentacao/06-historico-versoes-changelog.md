@@ -116,3 +116,33 @@ timeline
 | **Landing Page de Impacto Social** | ❌ Não | ❌ Não | ✅ Sim (Pública com KPIs ESG) |
 | **Prazo de Retenção de Dados** | Indefinido | 5 anos | 2 anos (Conforme LGPD) |
 | **Testes Automatizados** | 0 testes | Parciais em JUnit | 33 testes Vitest integrados |
+
+
+---
+
+## 5. Changelog Detalhado — v3.0 (Novembro 2026)
+
+### v3.0.5 — Seed Demo FMP + Documentação de Credenciais (20/11/2026)
+
+**Arquivos alterados:**
+- `backend/src/infrastructure/database/seed.ts` — Reescrita completa com dados FMP reais
+- `backend/package.json` — Adicionados scripts `seed:demo` e `db:reset-demo`
+- `README.md` — Seção de credenciais atualizada com emails `@fmpsc.edu.br`
+- `documentacao/08-credenciais-e-dados-demo.md` — Novo arquivo criado
+
+**O que foi implementado:**
+
+| Componente | Descrição |
+|-----------|-----------|
+| **12 Usuários FMP** | COPER, 2 Professores, 6 Alunos ativos, 1 Inativo, Empresário, Civil |
+| **Emails Institucionais** | `@fmpsc.edu.br` (staff) e `@aluno.fmpsc.edu.br` (alunos) |
+| **4 Campanhas** | 1 ATIVA, 1 FUTURA (Natal), 2 ENCERRADAS (Páscoa, Natal 2025) |
+| **6 Doações** | 4 APROVADAS com hashes fixos + 2 PENDENTES para demo ao vivo |
+| **Libras LOTADA** | Turma 4/4 com Lucas, Eduardo, Davi (aprovados), Ana (reprovada) |
+| **Fila de Espera** | Vitor Emanuel (#1) e Nicolas (#2) prontos para promoção FIFO |
+| **Hashes de Demo** | `fmp-d001-*`, `fmp-d002-*`, `tok-lucas-libras`, `tok-civil-001` |
+| **Pré-limpeza** | Remoção automática de dados do seed legado (emails antigos) |
+| **Idempotência** | 100% — pode ser executado N vezes sem duplicar registros |
+
+**Senhas do ambiente demo:**
+- COPER: `Coper@2026` | Professor: `Prof@2026` | Aluno: `Aluno@2026` | Empresa: `Empresa@2026` | Civil: `Civil@2026`

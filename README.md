@@ -121,9 +121,11 @@ O serviço `PDFGeneratorService` emite 3 modelos oficiais de documento em PDF co
 ### Validação Pública Estilo Unisul
 - URL: `https://<dominio>/validar?code=<hash>`
 - Endpoint da API: `GET /api/public/validar/:code`
-- Códigos pré-configurados para testes rápidos:
-  - `tok-luc-001` — Doação de Aluno FMP (Modelo 1)
-  - `tok-edu-001` — Doação Solidária de Professor (Modelo 2)
+- Códigos pré-configurados pelo seed demo:
+  - `fmp-d001-lucas-agasalho-2026` — Comprovante de Doação com 10h (Aluno Lucas)
+  - `fmp-d002-eduardo-alimentos-2026` — Comprovante de Doação com 15h (Aluno Eduardo)
+  - `tok-lucas-libras` — Certificado de Conclusão Libras (Lucas Schutz, 40h)
+  - `tok-civil-001` — Comprovante Solidário da Comunidade (Maria de Lourdes)
 
 ---
 
@@ -168,19 +170,52 @@ Acesse a aplicação em: `http://localhost:5173`
 
 ---
 
-## 👥 Usuários de Teste
+## 🎓 Dados de Demonstração — Banca PI III (FMP)
 
-O seed oficial cria os usuários abaixo prontos para autenticação:
+Execute o seed para popular o banco com dados realistas:
 
-| Perfil | E-mail de Teste | Senha | Destino Pós-Login |
-|---|---|---|---|
-| **Admin / COPER** | `coper@coper.edu.br` *(ou `admin@fmpsc.edu.br`)* | `admin123` | `/dashboard` |
-| **Professor** | `professor.libras@coper.edu.br` | `prof123` | `/diario-classe` |
-| **Professor TI** | `professor.ti@coper.edu.br` | `prof123` | `/diario-classe` |
-| **Aluno** | `lucas@aluno.fmpsc.edu.br` *(ou `lucas.aluno@aluno.coper.edu.br`)* | `aluno123` | `/meu-painel` |
-| **Aluna** | `mariana.aluna@aluno.coper.edu.br` | `aluno123` | `/meu-painel` |
-| **Empresário** | `contato@techparceira.com.br` | `empresa123` | `/painel-impacto` |
-| **Civil (Comunidade)** | `comunidade.palhoca@gmail.com` | `civil123` | `/validar` |
+```bash
+# Executar seed demo (idempotente — pode repetir sem duplicar):
+npm run seed --prefix backend
+# ou pelo alias:
+npm run seed:demo --prefix backend
+
+# Reset completo + seed (apaga tudo e recria):
+npm run db:reset-demo --prefix backend
+```
+
+### 👥 Credenciais de Acesso
+
+| Perfil | E-mail | Senha | Rota Inicial |
+|--------|--------|-------|--------------|
+| **COPER / Admin** | `coper@fmpsc.edu.br` | `Coper@2026` | `/dashboard` |
+| **Professor Libras** | `prof.libras@fmpsc.edu.br` | `Prof@2026` | `/diario-classe` |
+| **Professor Extensão** | `prof.extensao@fmpsc.edu.br` | `Prof@2026` | `/diario-classe` |
+| **Aluno — Lucas Schutz** | `lucas.schutz@aluno.fmpsc.edu.br` | `Aluno@2026` | `/meu-painel` |
+| **Aluno — Eduardo Silva** | `eduardo.silva@aluno.fmpsc.edu.br` | `Aluno@2026` | `/meu-painel` |
+| **Aluno — Davi Aravechia** | `davi.aravechia@aluno.fmpsc.edu.br` | `Aluno@2026` | `/meu-painel` |
+| **Aluno — Vitor Emanuel** | `vitor.emanuel@aluno.fmpsc.edu.br` | `Aluno@2026` | `/meu-painel` |
+| **Aluno — Nicolas** | `nicolas@aluno.fmpsc.edu.br` | `Aluno@2026` | `/meu-painel` |
+| **Aluna — Ana Souza** | `ana.souza@aluno.fmpsc.edu.br` | `Aluno@2026` | `/meu-painel` |
+| **Aluno INATIVO** *(testa RN05)* | `aluno.inativo@aluno.fmpsc.edu.br` | `Aluno@2026` | bloqueado |
+| **Empresário Parceiro** | `parceiro@empresa.com.br` | `Empresa@2026` | `/painel-impacto` |
+| **Civil (Comunidade)** | `civil@gmail.com` | `Civil@2026` | `/validar` |
+
+### 🔑 Hashes de Autenticidade para `/validar`
+
+Cole qualquer hash abaixo em `http://localhost:5173/validar?code=<hash>`:
+
+| Hash | Tipo | Doador / Aluno | Horas |
+|------|------|----------------|-------|
+| `fmp-d001-lucas-agasalho-2026` | Declaração de Doação (Aluno) | Lucas Schutz | **10h** |
+| `fmp-d002-eduardo-alimentos-2026` | Declaração de Doação (Aluno) | Eduardo da Silva | **15h** |
+| `fmp-d003-civil-pascoa-2026` | Comprovante Solidário (Civil) | Maria de Lourdes | 0h |
+| `fmp-d004-empresa-responsabilidade-2026` | Comprovante Empresarial | Empresa Parceira S/A | 0h |
+| `tok-lucas-libras` | Certificado de Curso | Lucas Schutz — Libras | **40h** |
+| `tok-civil-001` | Comprovante de Doação | Maria de Lourdes | 0h |
+
+> 📋 **Documentação completa de cenários de teste e roteiro de banca:**  
+> [`documentacao/08-credenciais-e-dados-demo.md`](documentacao/08-credenciais-e-dados-demo.md)
 
 ---
 
